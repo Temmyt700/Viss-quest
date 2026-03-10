@@ -1,0 +1,28 @@
+.admin-sidebar {
+  border: 1px solid #e4f3e5;
+  border-radius: 18px;
+  background: #fff;
+  padding: 0.9rem;
+  height: fit-content;
+}
+
+.admin-nav {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 0.8rem;
+}
+
+.admin-link {
+  border: 1px solid #dff0df;
+  background: #f6fcf6;
+  border-radius: 10px;
+  padding: 0.55rem;
+  text-align: left;
+}
+
+.admin-link.active {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(130deg, var(--green-900), var(--green-500));
+}
+

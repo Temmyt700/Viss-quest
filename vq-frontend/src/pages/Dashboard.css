@@ -1,0 +1,19 @@
+.entries-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.entry-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.2rem 0.6rem;
+  border: 1px solid #e4f3e5;
+  border-radius: 12px;
+  padding: 0.75rem;
+}
+
+.entry-item small {
+  grid-column: 1/-1;
+  color: var(--muted);
+}
+

@@ -1,0 +1,12 @@
+.winner-card {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.winner-image {
+  width: 100%;
+  aspect-ratio: 16/10;
+  object-fit: cover;
+  border-radius: 12px;
+}
+

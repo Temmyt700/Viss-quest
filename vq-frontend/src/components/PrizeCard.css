@@ -1,0 +1,25 @@
+.prize-card {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.prize-image {
+  width: 100%;
+  aspect-ratio: 16/9;
+  border-radius: 14px;
+  object-fit: cover;
+}
+
+.status-pill {
+  border-radius: 999px;
+  background: #edf8ee;
+  color: var(--green-800);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.32rem 0.65rem;
+}
+
+.entry-fee {
+  font-weight: 700;
+}
+

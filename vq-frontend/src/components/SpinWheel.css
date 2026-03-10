@@ -1,0 +1,110 @@
+.spin-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.spin-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding-top: 1.25rem;
+}
+
+.spin-pointer {
+  position: absolute;
+  top: 0;
+  z-index: 2;
+  width: 0;
+  height: 0;
+  border-left: 14px solid transparent;
+  border-right: 14px solid transparent;
+  border-top: 24px solid var(--green-900);
+  filter: drop-shadow(0 8px 14px rgba(5, 102, 8, 0.24));
+}
+
+.spin-wheel {
+  position: relative;
+  width: min(280px, 78vw);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 8px solid #d7efd8;
+  background:
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.1) 0 22%, transparent 22%),
+    conic-gradient(
+      from -36deg,
+      #056608 0deg 72deg,
+      #43b446 72deg 144deg,
+      #147917 144deg 216deg,
+      #52c755 216deg 288deg,
+      #248d27 288deg 360deg
+    );
+  box-shadow: inset 0 0 0 10px rgba(255, 255, 255, 0.35), 0 22px 34px rgba(10, 66, 13, 0.14);
+  transition: transform 2.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.wheel-segment {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  transform: rotate(var(--segment-rotation));
+}
+
+.wheel-reward {
+  font-weight: 700;
+  font-size: 0.78rem;
+  width: 72px;
+  text-align: center;
+  line-height: 1.15;
+  color: #ffffff;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.24);
+  margin-top: 26px;
+  transform: rotate(calc(-1 * var(--segment-rotation)));
+}
+
+.spin-core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 3;
+  width: 86px;
+  height: 86px;
+  border: 0;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(135deg, #ffffff, #f0fbf0);
+  color: var(--green-900);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  box-shadow: 0 12px 28px rgba(10, 66, 13, 0.18);
+  cursor: pointer;
+  animation: breathe 1.8s ease-in-out infinite;
+}
+
+.spin-core:disabled {
+  cursor: not-allowed;
+  opacity: 0.8;
+  animation: none;
+}
+
+.spin-core.is-spinning {
+  animation: none;
+}
+
+.spin-helper {
+  text-align: center;
+  color: var(--muted);
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow: 0 12px 28px rgba(10, 66, 13, 0.18);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.06);
+    box-shadow: 0 16px 32px rgba(10, 66, 13, 0.24);
+  }
+}

@@ -1,0 +1,14 @@
+.quiz-options {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.option-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  border: 1px solid #e4f3e5;
+  border-radius: 10px;
+  padding: 0.5rem 0.65rem;
+}
+
