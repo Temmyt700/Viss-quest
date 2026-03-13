@@ -1,0 +1,30 @@
+.draw-form {
+  display: grid;
+  gap: 0.8rem;
+  overflow: hidden;
+}
+
+.draw-image-grid,
+.draw-image-field {
+  min-width: 0;
+  position: relative;
+  z-index: 0;
+}
+
+.draw-image-field input {
+  width: 100%;
+}
+
+.draw-slot-history {
+  border: 1px solid #e4f3e5;
+  background: #f7fcf7;
+  border-radius: 14px;
+  padding: 0.85rem;
+  color: var(--muted);
+}
+
+@media (min-width: 900px) {
+  .draw-form {
+    align-content: start;
+  }
+}

@@ -1,0 +1,9 @@
+.notification-page-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.notification-page-item {
+  display: grid;
+  gap: 0.6rem;
+}

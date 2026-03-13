@@ -127,6 +127,8 @@ Columns
 
 id (UUID, Primary Key)
 
+draw_id (VARCHAR, UNIQUE)
+
 title (VARCHAR)
 
 description (TEXT)
@@ -141,9 +143,13 @@ image_url (TEXT)
 
 max_entries (INTEGER)
 
+current_entries (INTEGER)
+
 draw_day (VARCHAR)
 
-draw_time (TIMESTAMP)
+start_time (TIMESTAMP)
+
+end_time (TIMESTAMP)
 
 status (VARCHAR)
 
@@ -151,9 +157,24 @@ created_at (TIMESTAMP)
 
 Status Values
 
-open  
+available  
+almost_filled  
+closing_soon  
+limited_slots  
+filled  
 closed  
-completed
+
+Notes
+
+draw_id is the public/admin identifier for the draw.
+
+current_entries should default to 0.
+
+When current_entries reaches max_entries, status should automatically become filled.
+
+When end_time is reached, status should automatically become closed.
+
+Admin can manually override urgency status when needed.
 
 Prize Type Examples
 

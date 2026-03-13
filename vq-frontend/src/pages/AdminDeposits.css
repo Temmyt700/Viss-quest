@@ -1,0 +1,24 @@
+.deposit-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.deposit-card {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.deposit-status-pending {
+  background: #fff7cc;
+  color: #8d7200;
+}
+
+.deposit-status-approved {
+  background: #edf8ee;
+  color: #147917;
+}
+
+.deposit-status-rejected {
+  background: #ffe3e1;
+  color: #c2453d;
+}

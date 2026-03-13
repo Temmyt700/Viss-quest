@@ -1,0 +1,17 @@
+.testimonial-card {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.testimonial-images {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.testimonial-images img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 14px;
+}

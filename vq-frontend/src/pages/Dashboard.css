@@ -17,3 +17,9 @@
   color: var(--muted);
 }
 
+.dashboard-winner-note {
+  border-color: #d5edda;
+  background: linear-gradient(135deg, rgba(82, 199, 85, 0.12), #ffffff);
+  display: grid;
+  gap: 0.35rem;
+}

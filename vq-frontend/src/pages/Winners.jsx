@@ -1,6 +1,7 @@
 import WinnerCard from '../components/WinnerCard'
+import TestimonialCard from '../components/TestimonialCard'
 
-function Winners({ winners }) {
+function Winners({ winners, testimonials }) {
   return (
     <section className="stack-lg">
       <header className="card">
@@ -12,9 +13,18 @@ function Winners({ winners }) {
           <WinnerCard key={winner.id} winner={winner} />
         ))}
       </div>
+      <section className="stack">
+        <div className="section-head">
+          <h2>Winner Testimonials</h2>
+        </div>
+        <div className="grid three">
+          {testimonials.map((testimonial) => (
+            <TestimonialCard key={testimonial.id} testimonial={testimonial} />
+          ))}
+        </div>
+      </section>
     </section>
   )
 }
 
 export default Winners
-

@@ -73,6 +73,10 @@ p {
   gap: 1rem;
 }
 
+.grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .row {
   display: flex;
   gap: 0.75rem;
@@ -126,6 +130,12 @@ p {
   box-shadow: 0 8px 18px rgba(36, 141, 39, 0.14);
 }
 
+.btn-disabled {
+  color: #66727f;
+  background: #edf0f3;
+  box-shadow: none;
+}
+
 .btn:not(:disabled):hover {
   transform: translateY(-1px);
 }
@@ -174,6 +184,44 @@ select:focus {
   padding: 0;
 }
 
+.status-pill {
+  border-radius: 999px;
+  background: #edf8ee;
+  color: var(--green-800);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.32rem 0.65rem;
+}
+
+.auth-card {
+  width: min(100%, 640px);
+  display: grid;
+  gap: 0.9rem;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.user-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #eaf5ea;
+  text-align: left;
+  vertical-align: top;
+}
+
 .stats-card h3 {
   font-size: 1.4rem;
 }
@@ -188,6 +236,33 @@ select:focus {
   font-weight: 600;
 }
 
+.draw-status.status-available {
+  background: #edf8ee;
+  color: #147917;
+}
+
+.draw-status.status-almost_filled {
+  background: #ffedd6;
+  color: #b25f00;
+}
+
+.draw-status.status-closing_soon {
+  background: #fff7cc;
+  color: #8d7200;
+}
+
+.draw-status.status-limited_slots {
+  background: #ffe3e1;
+  color: #c2453d;
+}
+
+.draw-status.status-filled,
+.draw-status.status-closed,
+.draw-status.status-completed {
+  background: #edf0f3;
+  color: #66727f;
+}
+
 .admin-layout {
   display: grid;
   gap: 1rem;
@@ -198,6 +273,10 @@ select:focus {
 }
 
 @media (min-width: 700px) {
+  .grid.two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .grid.three {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -212,3 +291,8 @@ select:focus {
   }
 }
 
+@media (max-width: 520px) {
+  .grid.two {
+    grid-template-columns: 1fr;
+  }
+}

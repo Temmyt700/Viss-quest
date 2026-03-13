@@ -1,0 +1,8 @@
+.wallet-warning {
+  border: 1px solid #f1c98c;
+  background: linear-gradient(135deg, #fff6e8, #fffdf8);
+  color: #8b5e1c;
+  border-radius: 16px;
+  padding: 1rem;
+  font-weight: 700;
+}

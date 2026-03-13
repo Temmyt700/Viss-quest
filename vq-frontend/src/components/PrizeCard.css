@@ -23,3 +23,37 @@
   font-weight: 700;
 }
 
+.draw-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.draw-status.status-available {
+  background: #edf8ee;
+  color: #147917;
+}
+
+.draw-status.status-almost_filled {
+  background: #ffedd6;
+  color: #b25f00;
+}
+
+.draw-status.status-closing_soon {
+  background: #fff7cc;
+  color: #8d7200;
+}
+
+.draw-status.status-limited_slots {
+  background: #ffe3e1;
+  color: #c2453d;
+}
+
+.draw-status.status-filled,
+.draw-status.status-closed,
+.draw-status.status-completed {
+  background: #edf0f3;
+  color: #66727f;
+}

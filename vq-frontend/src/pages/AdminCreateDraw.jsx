@@ -1,35 +1,25 @@
+import DrawForm from '../components/DrawForm'
+
 function AdminCreateDraw() {
   return (
     <section className="stack-lg">
-      <h1>Create Draw</h1>
-      <form className="card auth-card">
-        <label>
-          Prize Title
-          <input type="text" placeholder="Laptop Draw" />
-        </label>
-        <label>
-          Entry Fee
-          <input type="number" placeholder="1000" />
-        </label>
-        <label>
-          Draw Day
-          <select>
-            <option>Monday</option>
-            <option>Wednesday</option>
-            <option>Friday</option>
-          </select>
-        </label>
-        <label>
-          Prize Image URL
-          <input type="url" placeholder="https://..." />
-        </label>
-        <button type="button" className="btn btn-primary">
-          Create Draw
-        </button>
-      </form>
+      <header className="card">
+        <h1>Create Draws</h1>
+        <p className="muted">
+          Schedule up to 3 draws for a draw day, define go-live timing, and support image URL or
+          upload.
+        </p>
+      </header>
+      <div className="grid three">
+        {[0, 1, 2].map((index) => (
+          <DrawForm key={index} index={index} />
+        ))}
+      </div>
+      <button type="button" className="btn btn-primary">
+        Save Draw Schedule
+      </button>
     </section>
   )
 }
 
 export default AdminCreateDraw
-

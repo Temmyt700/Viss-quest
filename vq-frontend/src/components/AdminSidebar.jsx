@@ -5,8 +5,11 @@ const adminLinks = [
   { path: '/admin/create-draw', label: 'Create Draw' },
   { path: '/admin/participants', label: 'Participants' },
   { path: '/admin/deposits', label: 'Wallet Deposits' },
+  { path: '/admin/wallet-stats', label: 'Wallet Stats' },
+  { path: '/admin/banks', label: 'Banks' },
   { path: '/admin/winners', label: 'Winners' },
   { path: '/admin/quiz', label: 'Daily Quiz' },
+  { path: '/admin/users', label: 'Users' },
 ]
 
 function AdminSidebar({ currentPath, onNavigate }) {
@@ -18,7 +21,7 @@ function AdminSidebar({ currentPath, onNavigate }) {
           <button
             key={link.path}
             type="button"
-            className={`admin-link ${currentPath === link.path ? 'active' : ''}`}
+            className={`admin-link ${currentPath === link.path || (link.path === '/admin/users' && currentPath.startsWith('/admin/users/')) ? 'active' : ''}`}
             onClick={() => onNavigate(link.path)}
           >
             {link.label}

@@ -1,3 +1,4 @@
+import NotificationBell from './NotificationBell'
 import './Navbar.css'
 
 const links = [
@@ -12,7 +13,7 @@ const desktopAuthLinks = [
   { path: '/signup', label: 'Sign Up' },
 ]
 
-function Navbar({ currentPath, onNavigate }) {
+function Navbar({ currentPath, onNavigate, notifications, isNotificationsOpen, onToggleNotifications }) {
   return (
     <header className="navbar">
       <button className="brand-link" type="button" onClick={() => onNavigate('/')}>
@@ -21,35 +22,45 @@ function Navbar({ currentPath, onNavigate }) {
           <strong>VissQuest</strong>
         </span>
       </button>
-      <nav className="nav-links">
-        {links.map((link) => (
+      <div className="nav-shell">
+        <nav className="nav-links">
+          {links.map((link) => (
+            <button
+              key={link.path}
+              type="button"
+              className={`nav-link ${currentPath === link.path ? 'active' : ''}`}
+              onClick={() => onNavigate(link.path)}
+            >
+              {link.label}
+            </button>
+          ))}
           <button
-            key={link.path}
             type="button"
-            className={`nav-link ${currentPath === link.path ? 'active' : ''}`}
-            onClick={() => onNavigate(link.path)}
+            className={`nav-link nav-link-auth-mobile ${currentPath === '/login' || currentPath === '/signup' ? 'active' : ''}`}
+            onClick={() => onNavigate('/login')}
           >
-            {link.label}
+            <span className="nav-link-label">Login / Sign Up</span>
           </button>
-        ))}
-        <button
-          type="button"
-          className={`nav-link nav-link-auth-mobile ${currentPath === '/login' || currentPath === '/signup' ? 'active' : ''}`}
-          onClick={() => onNavigate('/login')}
-        >
-          Login / Sign Up
-        </button>
-        {desktopAuthLinks.map((link) => (
-          <button
-            key={link.path}
-            type="button"
-            className={`nav-link nav-link-auth-desktop ${currentPath === link.path ? 'active' : ''}`}
-            onClick={() => onNavigate(link.path)}
-          >
-            {link.label}
-          </button>
-        ))}
-      </nav>
+          {desktopAuthLinks.map((link) => (
+            <button
+              key={link.path}
+              type="button"
+              className={`nav-link nav-link-auth-desktop ${currentPath === link.path ? 'active' : ''}`}
+              onClick={() => onNavigate(link.path)}
+            >
+              {link.label}
+            </button>
+          ))}
+        </nav>
+        <div className="nav-utility">
+          <NotificationBell
+            notifications={notifications}
+            isOpen={isNotificationsOpen}
+            onToggle={onToggleNotifications}
+            onNavigate={onNavigate}
+          />
+        </div>
+      </div>
     </header>
   )
 }

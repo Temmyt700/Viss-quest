@@ -27,8 +27,23 @@ function Dashboard({ user, recentEntries, onNavigate }) {
           <button type="button" className="btn btn-soft" onClick={() => onNavigate('/daily-chances')}>
             Daily Chances
           </button>
+          <button
+            type="button"
+            className="btn btn-soft"
+            onClick={() => onNavigate('/testimonials')}
+            disabled={user.wins === 0}
+          >
+            Testimonials
+          </button>
         </div>
       </section>
+
+      {user.wins > 0 ? (
+        <section className="card dashboard-winner-note">
+          <strong>Winner Notice</strong>
+          <p>You have won a prize. Please submit your testimonial and proof once you receive your prize.</p>
+        </section>
+      ) : null}
 
       <section className="card stack">
         <h2>Recent Entries</h2>
