@@ -1,8 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
-import type { AnyZodObject } from "zod";
+import type { ZodTypeAny } from "zod";
 
 export const validate =
-  (schema: AnyZodObject) => (req: Request, res: Response, next: NextFunction) => {
+  (schema: ZodTypeAny) => (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse({
       body: req.body,
       query: req.query,
@@ -17,8 +17,14 @@ export const validate =
       return;
     }
 
-    req.body = result.data.body;
-    req.query = result.data.query as Request["query"];
-    req.params = result.data.params as Request["params"];
+    const parsed = result.data as {
+      body: Request["body"];
+      query: Request["query"];
+      params: Request["params"];
+    };
+
+    req.body = parsed.body;
+    req.query = parsed.query;
+    req.params = parsed.params;
     next();
   };
