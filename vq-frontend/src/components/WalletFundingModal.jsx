@@ -5,6 +5,7 @@ import './WalletFundingModal.css'
 
 function WalletFundingModal({ isOpen, user, banks, supportContact, onClose, onSubmit }) {
   const [selectedAmount, setSelectedAmount] = useState('')
+  const [proofName, setProofName] = useState('')
 
   if (!isOpen) return null
 
@@ -56,6 +57,17 @@ function WalletFundingModal({ isOpen, user, banks, supportContact, onClose, onSu
                 <strong>{user.referenceId}</strong>
               </div>
             </div>
+            <label>
+              Upload Payment Proof
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(event) =>
+                  setProofName(event.target.files && event.target.files[0] ? event.target.files[0].name : '')
+                }
+              />
+            </label>
+            {proofName ? <p className="muted">Selected proof: {proofName}</p> : null}
 
             <p className="funding-note">
               Transfer the exact selected amount and include your Reference ID in the narration.
@@ -72,8 +84,9 @@ function WalletFundingModal({ isOpen, user, banks, supportContact, onClose, onSu
               type="button"
               className="btn btn-primary"
               onClick={() => {
-                onSubmit(Number(selectedAmount))
+                onSubmit(Number(selectedAmount), proofName)
                 setSelectedAmount('')
+                setProofName('')
               }}
             >
               I have sent the money

@@ -2,6 +2,8 @@
   width: min(620px, 100%);
   max-height: min(88vh, 760px);
   overflow-y: auto;
+  margin-top: 4.5rem;
+  overscroll-behavior: contain;
 }
 
 .funding-instructions {
@@ -75,9 +77,16 @@
 }
 
 @media (max-width: 520px) {
+  .modal-overlay {
+    align-items: start;
+    padding-top: 5.5rem;
+    padding-bottom: 1rem;
+  }
+
   .funding-modal {
     width: 100%;
-    max-height: 90vh;
+    max-height: calc(100vh - 6.5rem);
+    margin-top: 0;
   }
 
   .modal-card.funding-modal {

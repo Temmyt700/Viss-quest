@@ -53,6 +53,7 @@ function App() {
   const [depositRequests, setDepositRequests] = useState(INITIAL_DEPOSITS)
   const [bankAccounts, setBankAccounts] = useState(BANK_ACCOUNTS)
   const [users, setUsers] = useState(USERS)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [recentEntries, setRecentEntries] = useState([
     {
       id: 'e1',
@@ -129,6 +130,20 @@ function App() {
     window.history.pushState({}, '', nextPath)
     setPath(nextPath)
     setIsNotificationsOpen(false)
+  }
+
+  const handleLogin = () => {
+    setIsAuthenticated(true)
+    navigate('/dashboard')
+  }
+
+  const handleLogout = () => {
+    setIsAuthenticated(false)
+    setIsNotificationsOpen(false)
+    setIsFundingOpen(false)
+    setEntryDraw(null)
+    setPath('/')
+    window.history.pushState({}, '', '/')
   }
 
   const handleEnterDraw = (draw) => {
@@ -256,12 +271,13 @@ function App() {
     })
   }
 
-  const handleSubmitFunding = (amount) => {
+  const handleSubmitFunding = (amount, proofName) => {
     const request = {
       id: `dep-${Date.now()}`,
       userId: 'u1',
       referenceId: 'VQ024',
       amount,
+      proofName,
       timestamp: new Date().toLocaleString('en-US', {
         month: 'short',
         day: 'numeric',
@@ -462,9 +478,9 @@ function App() {
           />
         )
       case '/login':
-        return <Login onGoSignup={() => navigate('/signup')} />
+        return <Login onGoSignup={() => navigate('/signup')} onLogin={handleLogin} />
       case '/signup':
-        return <Signup onGoLogin={() => navigate('/login')} />
+        return <Signup onGoLogin={() => navigate('/login')} onSignup={handleLogin} />
       case '/dashboard':
         return (
           <Dashboard
@@ -601,6 +617,8 @@ function App() {
         notifications={notifications}
         isNotificationsOpen={isNotificationsOpen}
         onToggleNotifications={() => setIsNotificationsOpen((prev) => !prev)}
+        isAuthenticated={isAuthenticated}
+        onLogout={handleLogout}
       />
       <main className="page-container">
         {isAdminRoute ? (

@@ -7,8 +7,8 @@ function Dashboard({ user, recentEntries, onNavigate }) {
     <section className="stack-lg">
       <header className="card">
         <p className="eyebrow">Welcome back</p>
-        <h1>{user.fullName}</h1>
-        <p className="muted">Reference ID: {user.referenceId}</p>
+        <h1>{user.referenceId}</h1>
+        <p className="muted">{user.fullName}</p>
       </header>
 
       <div className="grid four">
@@ -22,7 +22,7 @@ function Dashboard({ user, recentEntries, onNavigate }) {
         <h2>Quick Actions</h2>
         <div className="row">
           <button type="button" className="btn btn-primary" onClick={() => onNavigate('/wallet')}>
-            Fund Wallet
+            Wallet
           </button>
           <button type="button" className="btn btn-soft" onClick={() => onNavigate('/daily-chances')}>
             Daily Chances

@@ -1,6 +1,6 @@
 import './Login.css'
 
-function Login({ onGoSignup }) {
+function Login({ onGoSignup, onLogin }) {
   return (
     <section className="auth-wrap">
       <form className="card auth-card">
@@ -13,7 +13,7 @@ function Login({ onGoSignup }) {
           Password
           <input type="password" placeholder="Enter password" />
         </label>
-        <button type="button" className="btn btn-primary">
+        <button type="button" className="btn btn-primary" onClick={onLogin}>
           Sign In
         </button>
         <p className="muted">

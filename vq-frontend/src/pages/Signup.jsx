@@ -1,6 +1,6 @@
 import './Signup.css'
 
-function Signup({ onGoLogin }) {
+function Signup({ onGoLogin, onSignup }) {
   return (
     <section className="auth-wrap">
       <form className="card auth-card">
@@ -20,11 +20,15 @@ function Signup({ onGoLogin }) {
         <p className="muted">
           Your WhatsApp number is important because winners are contacted through it.
         </p>
+        <div className="card signup-notice">
+          <strong>Important:</strong> Please ensure your name matches the name on your bank
+          account. If the name does not match, you may not be able to receive cash prize payouts.
+        </div>
         <label>
           Password
           <input type="password" placeholder="Create password" />
         </label>
-        <button type="button" className="btn btn-primary">
+        <button type="button" className="btn btn-primary" onClick={onSignup}>
           Sign Up
         </button>
         <p className="muted">

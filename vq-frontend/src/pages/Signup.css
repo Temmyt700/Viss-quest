@@ -10,3 +10,8 @@
   gap: 0.9rem;
 }
 
+.signup-notice {
+  border-color: #f1c98c;
+  background: linear-gradient(135deg, #fff8ef, #fffdf8);
+  color: #8b5e1c;
+}
