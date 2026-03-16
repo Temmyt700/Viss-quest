@@ -1,13 +1,16 @@
 .prize-card {
   display: grid;
   gap: 0.8rem;
+  cursor: pointer;
 }
 
 .prize-image {
+  display: block;
   width: 100%;
   aspect-ratio: 16/9;
   border-radius: 14px;
   object-fit: cover;
+  object-position: center;
 }
 
 .status-pill {

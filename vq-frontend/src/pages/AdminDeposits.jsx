@@ -5,10 +5,10 @@ function AdminDeposits({ deposits, onApprove, onReject }) {
     <section className="stack-lg">
       <header className="card">
         <h1>Wallet Deposits</h1>
-        <p className="muted">Moderators can approve deposits and suspend false confirmations.</p>
+        <p className="muted">Review pending requests and keep recent approved or rejected deposits visible for audit.</p>
       </header>
       <div className="deposit-list">
-        {deposits.map((deposit) => (
+        {deposits.length ? deposits.map((deposit) => (
           <article key={deposit.id} className="card deposit-card">
             <div className="row spread">
               <div>
@@ -21,15 +21,29 @@ function AdminDeposits({ deposits, onApprove, onReject }) {
             </div>
             <p>Amount: N {deposit.amount.toLocaleString()}</p>
             <div className="row">
-              <button type="button" className="btn btn-primary" onClick={() => onApprove(deposit.id)}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => onApprove(deposit.id)}
+                disabled={deposit.status !== 'Pending'}
+              >
                 Approve
               </button>
-              <button type="button" className="btn btn-soft" onClick={() => onReject(deposit.id)}>
+              <button
+                type="button"
+                className="btn btn-soft"
+                onClick={() => onReject(deposit.id)}
+                disabled={deposit.status !== 'Pending'}
+              >
                 Reject
               </button>
             </div>
           </article>
-        ))}
+        )) : (
+          <article className="card">
+            <p className="muted">No wallet deposits yet.</p>
+          </article>
+        )}
       </div>
     </section>
   )

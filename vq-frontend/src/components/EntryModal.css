@@ -1,10 +1,14 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
+  z-index: 80;
   background: rgba(5, 23, 6, 0.5);
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 1rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .modal-card {
@@ -23,3 +27,17 @@
   gap: 0.8rem;
 }
 
+@media (max-width: 520px) {
+  .modal-overlay {
+    align-items: flex-start;
+    padding: 5.75rem 1rem 1rem;
+  }
+
+  .modal-card {
+    width: 100%;
+  }
+
+  .modal-grid {
+    grid-template-columns: 1fr;
+  }
+}

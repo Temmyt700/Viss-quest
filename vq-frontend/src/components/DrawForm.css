@@ -15,12 +15,27 @@
   width: 100%;
 }
 
+.draw-form input[type='datetime-local'] {
+  min-width: 0;
+  width: 100%;
+  appearance: auto;
+}
+
+.draw-form input[type='datetime-local']::-webkit-calendar-picker-indicator {
+  opacity: 1;
+  cursor: pointer;
+}
+
 .draw-slot-history {
   border: 1px solid #e4f3e5;
   background: #f7fcf7;
   border-radius: 14px;
   padding: 0.85rem;
   color: var(--muted);
+}
+
+.draw-form .form-error {
+  margin: 0;
 }
 
 @media (min-width: 900px) {

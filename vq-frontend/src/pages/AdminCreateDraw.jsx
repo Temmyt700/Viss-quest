@@ -1,6 +1,6 @@
 import DrawForm from '../components/DrawForm'
 
-function AdminCreateDraw() {
+function AdminCreateDraw({ draws, onCreateDraw }) {
   return (
     <section className="stack-lg">
       <header className="card">
@@ -12,12 +12,14 @@ function AdminCreateDraw() {
       </header>
       <div className="grid three">
         {[0, 1, 2].map((index) => (
-          <DrawForm key={index} index={index} />
+          <DrawForm
+            key={index}
+            index={index}
+            existingDraw={draws.find((draw) => draw.slotNumber === index + 1)}
+            onConfirmSlot={onCreateDraw}
+          />
         ))}
       </div>
-      <button type="button" className="btn btn-primary">
-        Save Draw Schedule
-      </button>
     </section>
   )
 }

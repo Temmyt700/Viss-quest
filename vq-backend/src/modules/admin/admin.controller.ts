@@ -12,6 +12,11 @@ export const adminController = {
     res.status(200).json({ users });
   },
 
+  async participants(_req: Request, res: Response) {
+    const participants = await adminService.listParticipants();
+    res.status(200).json({ participants });
+  },
+
   async getUser(req: Request, res: Response) {
     const user = await adminService.getUser(req.params.id);
     res.status(200).json(user);
@@ -35,5 +40,10 @@ export const adminController = {
   async walletStats(_req: Request, res: Response) {
     const stats = await adminService.getWalletStats();
     res.status(200).json(stats);
+  },
+
+  async referralInsights(_req: Request, res: Response) {
+    const insights = await adminService.getReferralInsights();
+    res.status(200).json(insights);
   },
 };

@@ -34,9 +34,10 @@ function UserTable({ users, onViewUser, onBanToggle, onRoleChange }) {
                   <button type="button" className="btn btn-soft" onClick={() => onBanToggle(user.id)}>
                     {user.accountStatus === 'Suspended' ? 'Unban' : 'Ban'}
                   </button>
+                  {/* The current admin UI only supports user and admin roles. */}
                   <select value={user.role} onChange={(event) => onRoleChange(user.id, event.target.value)}>
                     <option value="user">User</option>
-                    <option value="moderator">Moderator</option>
+                    <option value="admin">Admin</option>
                   </select>
                 </div>
               </td>

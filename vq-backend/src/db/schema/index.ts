@@ -7,3 +7,4 @@ export * from "./quizzes.js";
 export * from "./testimonials.js";
 export * from "./notifications.js";
 export * from "./adminLogs.js";
+export * from "./referrals.js";

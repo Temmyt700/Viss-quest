@@ -61,6 +61,7 @@
   font-size: 0.86rem;
   line-height: 1.1;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .nav-link.active {
@@ -83,7 +84,19 @@
 
 .nav-utility {
   display: flex;
+  align-items: center;
+  gap: 0.7rem;
   justify-content: flex-end;
+}
+
+.nav-info-trigger {
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 1px solid #d9ecd9;
+  border-radius: 50%;
+  background: #f7fdf7;
+  color: var(--green-900);
+  font-weight: 800;
 }
 
 @media (min-width: 768px) {

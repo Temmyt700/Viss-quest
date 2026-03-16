@@ -2,7 +2,21 @@ import StatsCard from '../components/StatsCard'
 import { formatCurrency } from '../utils/format'
 import './Dashboard.css'
 
-function Dashboard({ user, recentEntries, onNavigate }) {
+function Dashboard({ user, recentEntries, notificationsUnreadCount, onNavigate, isLoading }) {
+  const referralSummary = user.referralSummary || {
+    referralCode: user.referenceId,
+    totalReferrals: 0,
+    successfulReferrals: 0,
+    totalRewardsEarned: 0,
+    recentActivity: [],
+  }
+  const referralLink = `${window.location.origin}/signup?ref=${referralSummary.referralCode}`
+  const formatActivityDate = (value) => {
+    if (!value) return 'Pending'
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? 'Pending' : date.toLocaleDateString()
+  }
+
   return (
     <section className="stack-lg">
       <header className="card">
@@ -12,9 +26,9 @@ function Dashboard({ user, recentEntries, onNavigate }) {
       </header>
 
       <div className="grid four">
-        <StatsCard label="Wallet Balance" value={formatCurrency(user.walletBalance)} />
-        <StatsCard label="Participations" value={user.participations} />
-        <StatsCard label="Wins" value={user.wins} />
+        <StatsCard label="Wallet Balance" value={isLoading ? '...' : formatCurrency(user.walletBalance)} />
+        <StatsCard label="Participations" value={isLoading ? '...' : user.participations} />
+        <StatsCard label="Wins" value={isLoading ? '...' : user.wins} />
         <StatsCard label="Today" value="Draw Day Ready" hint="Monday, Wednesday, Friday" />
       </div>
 
@@ -26,6 +40,9 @@ function Dashboard({ user, recentEntries, onNavigate }) {
           </button>
           <button type="button" className="btn btn-soft" onClick={() => onNavigate('/daily-chances')}>
             Daily Chances
+          </button>
+          <button type="button" className="btn btn-soft" onClick={() => onNavigate('/notifications')}>
+            Notifications ({notificationsUnreadCount})
           </button>
           <button
             type="button"
@@ -46,15 +63,73 @@ function Dashboard({ user, recentEntries, onNavigate }) {
       ) : null}
 
       <section className="card stack">
+        <div className="row spread">
+          <h2>Referral Center</h2>
+          <span className="status-pill">Earn {formatCurrency(500)} per qualified referral</span>
+        </div>
+        <div className="grid three">
+          <StatsCard label="Total Referrals" value={referralSummary.totalReferrals} />
+          <StatsCard label="Successful Referrals" value={referralSummary.successfulReferrals} />
+          <StatsCard label="Referral Rewards" value={formatCurrency(referralSummary.totalRewardsEarned)} />
+        </div>
+        <div className="grid two">
+          <section className="card">
+            <p className="eyebrow">Referral Code</p>
+            <h3>{referralSummary.referralCode}</h3>
+            <button
+              type="button"
+              className="btn btn-soft"
+              onClick={() => navigator.clipboard.writeText(referralSummary.referralCode)}
+            >
+              Copy referral code
+            </button>
+          </section>
+          <section className="card">
+            <p className="eyebrow">Referral Link</p>
+            <p className="muted">{referralLink}</p>
+            <button
+              type="button"
+              className="btn btn-soft"
+              onClick={() => navigator.clipboard.writeText(referralLink)}
+            >
+              Copy referral link
+            </button>
+          </section>
+        </div>
+        <div className="stack">
+          <h3>Recent Referral Activity</h3>
+          {(referralSummary.recentActivity || []).length ? (
+            referralSummary.recentActivity.map((activity) => (
+              <div key={activity.id} className="entry-item">
+                <strong>{activity.referenceId}</strong>
+                <span>{activity.status === 'rewarded' ? 'Rewarded' : 'Pending qualification'}</span>
+                <small>{formatActivityDate(activity.rewardedAt || activity.createdAt)}</small>
+              </div>
+            ))
+          ) : (
+            <p className="muted">Your referral activity will appear here after someone signs up with your code.</p>
+          )}
+        </div>
+      </section>
+
+      <section className="card stack">
         <h2>Recent Entries</h2>
         <div className="entries-list">
-          {recentEntries.map((entry) => (
-            <div key={entry.id} className="entry-item">
-              <strong>{entry.prizeTitle}</strong>
-              <span>{formatCurrency(entry.fee)}</span>
-              <small>{entry.date}</small>
-            </div>
-          ))}
+          {isLoading
+            ? Array.from({ length: 3 }, (_, index) => (
+                <div key={index} className="entry-item">
+                  <div className="skeleton-line skeleton-line-title" />
+                  <div className="skeleton-line skeleton-line-short" />
+                  <div className="skeleton-line" />
+                </div>
+              ))
+            : recentEntries.map((entry) => (
+                <div key={entry.id} className="entry-item">
+                  <strong>{entry.prizeTitle}</strong>
+                  <span>{formatCurrency(entry.fee)}</span>
+                  <small>{entry.date}</small>
+                </div>
+              ))}
         </div>
       </section>
     </section>

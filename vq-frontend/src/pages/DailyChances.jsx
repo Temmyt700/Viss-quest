@@ -6,12 +6,15 @@ import './DailyChances.css'
 
 function DailyChances({
   rewards,
+  spinCost,
   spinState,
   walletBalance,
   onSpin,
   onCloseResultModal,
+  quiz,
   quizState,
   onSubmitAnswer,
+  isLoading,
 }) {
   const [activeTab, setActiveTab] = useState('spin')
 
@@ -42,15 +45,26 @@ function DailyChances({
       {activeTab === 'spin' ? (
         <section className="stack">
           <section className="card">
-            <p className="muted">Wallet Balance: {formatCurrency(walletBalance)}</p>
-            <p className="muted">Spin cost: N 15. You can only spin once per day.</p>
+            {isLoading ? (
+              <div className="stack">
+                <div className="skeleton-line skeleton-line-title" />
+                <div className="skeleton-line" />
+              </div>
+            ) : (
+              <>
+                <p className="muted">Wallet Balance: {formatCurrency(walletBalance)}</p>
+                <p className="muted">Spin cost: {formatCurrency(spinCost)}. You can only spin once per day.</p>
+              </>
+            )}
           </section>
           <SpinWheel
             rewards={rewards}
             isSpinning={spinState.isSpinning}
+            isPriming={spinState.isPriming}
             rotation={spinState.rotation}
-            disabled={spinState.hasSpunToday || spinState.isSpinning || walletBalance < 15}
+            disabled={isLoading || spinState.hasSpunToday || spinState.isSpinning || walletBalance < spinCost}
             onSpin={onSpin}
+            isLoading={isLoading}
           />
           {spinState.showResultModal && spinState.result ? (
             <div className="modal-overlay" role="dialog" aria-modal="true">
@@ -66,7 +80,7 @@ function DailyChances({
         </section>
       ) : (
         <section className="stack">
-          <QuizCard state={quizState} onSubmit={onSubmitAnswer} />
+          <QuizCard quiz={quiz} state={quizState} onSubmit={onSubmitAnswer} isLoading={isLoading} />
           <section className="card">
             <h3>Today&apos;s Quiz Status</h3>
             <p className="muted">{quizState.answered ? 'Answered' : 'Not answered yet'}</p>

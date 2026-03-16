@@ -1,11 +1,56 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import StatsCard from '../components/StatsCard'
 import AdminTable from '../components/AdminTable'
 import Timer from '../components/Timer'
 import { getDrawStatusLabel } from '../utils/draws'
 
-function AdminDashboard({ stats, participants, draws, serverNow, onStatusChange, onCloseDraw }) {
+const buildDrawForm = (draw) => ({
+  title: draw.title,
+  description: draw.description || '',
+  entryFee: String(draw.entryFee || ''),
+  prizeValue: String(draw.prizeValue || ''),
+  maxEntries: String(draw.maxEntries || ''),
+  drawDay: draw.drawDay || 'Monday',
+  goLiveMode: draw.goLiveMode || 'instant',
+  scheduledAt: draw.startTime ? new Date(draw.startTime).toISOString().slice(0, 16) : '',
+  endTime: draw.endTime ? new Date(draw.endTime).toISOString().slice(0, 16) : '',
+  imageUrl: draw.images?.[0] || draw.imageUrl || '',
+  galleryImageUrls: (draw.images || []).slice(1).join('\n'),
+  imageFile: [],
+  status: draw.status || 'available',
+})
+
+function AdminDashboard({
+  stats,
+  participants,
+  draws,
+  referrals,
+  serverNow,
+  onUpdateDraw,
+  onStatusChange,
+  onCloseDraw,
+  onDeleteDraw,
+  isLoading,
+}) {
   const [selectedDraw, setSelectedDraw] = useState(null)
+  const [drawForm, setDrawForm] = useState(null)
+  const [isSavingDraw, setIsSavingDraw] = useState(false)
+
+  useEffect(() => {
+    setDrawForm(selectedDraw ? buildDrawForm(selectedDraw) : null)
+  }, [selectedDraw])
+
+  const handleSaveDraw = async () => {
+    if (!selectedDraw || !drawForm || isSavingDraw) return
+
+    setIsSavingDraw(true)
+    try {
+      await onUpdateDraw(selectedDraw.id, drawForm)
+      setSelectedDraw(null)
+    } finally {
+      setIsSavingDraw(false)
+    }
+  }
 
   return (
     <section className="stack-lg">
@@ -14,10 +59,10 @@ function AdminDashboard({ stats, participants, draws, serverNow, onStatusChange,
         <p className="muted">Monitor draws, deposits, quizzes, users, and wallet movement from one place.</p>
       </header>
       <div className="grid four">
-        <StatsCard label="Active Draws" value={stats.draws} />
-        <StatsCard label="Pending Deposits" value={stats.pendingDeposits} />
-        <StatsCard label="Today's Quiz" value={stats.todaysQuiz} />
-        <StatsCard label="Total Users" value={stats.totalUsers} />
+        <StatsCard label="Active Draws" value={isLoading ? '...' : stats.draws} />
+        <StatsCard label="Pending Deposits" value={isLoading ? '...' : stats.pendingDeposits} />
+        <StatsCard label="Today's Quiz" value={isLoading ? '...' : stats.todaysQuiz} />
+        <StatsCard label="Total Users" value={isLoading ? '...' : stats.totalUsers} />
       </div>
       <h2>Participants</h2>
       <AdminTable
@@ -34,6 +79,7 @@ function AdminDashboard({ stats, participants, draws, serverNow, onStatusChange,
           <table className="admin-table">
             <thead>
               <tr>
+                <th>Slot</th>
                 <th>Draw ID</th>
                 <th>Prize Name</th>
                 <th>Entry Fee</th>
@@ -49,7 +95,8 @@ function AdminDashboard({ stats, participants, draws, serverNow, onStatusChange,
             <tbody>
               {draws.map((draw) => (
                 <tr key={draw.id}>
-                  <td>{draw.drawId}</td>
+                  <td>Slot {draw.slotNumber}</td>
+                  <td>{draw.drawRef}</td>
                   <td>{draw.title}</td>
                   <td>N {draw.entryFee.toLocaleString()}</td>
                   <td>{draw.currentEntries}</td>
@@ -84,6 +131,9 @@ function AdminDashboard({ stats, participants, draws, serverNow, onStatusChange,
                       <button type="button" className="btn btn-primary" onClick={() => onCloseDraw(draw.id)}>
                         Close Draw
                       </button>
+                      <button type="button" className="btn btn-soft" onClick={() => onDeleteDraw(draw.id)}>
+                        Delete
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -91,35 +141,156 @@ function AdminDashboard({ stats, participants, draws, serverNow, onStatusChange,
             </tbody>
           </table>
         </div>
-        {selectedDraw ? (
+        {selectedDraw && drawForm ? (
           <section className="card stack">
             <div className="row spread">
-              <h3>{selectedDraw.title}</h3>
+              <h3>Edit Draw: {selectedDraw.title}</h3>
               <button type="button" className="btn btn-soft" onClick={() => setSelectedDraw(null)}>
                 Close
               </button>
             </div>
-            <p className="muted">{selectedDraw.description}</p>
             <div className="grid two">
-              <div>
-                <p className="eyebrow">Maximum Entries</p>
-                <strong>{selectedDraw.maxEntries}</strong>
-              </div>
-              <div>
-                <p className="eyebrow">Current Entries</p>
-                <strong>{selectedDraw.currentEntries}</strong>
-              </div>
-              <div>
-                <p className="eyebrow">Go Live Mode</p>
-                <strong>{selectedDraw.goLiveMode}</strong>
-              </div>
-              <div>
-                <p className="eyebrow">Status</p>
-                <strong>{getDrawStatusLabel(selectedDraw.status)}</strong>
-              </div>
+              <label>
+                Prize Title
+                <input
+                  type="text"
+                  value={drawForm.title}
+                  onChange={(event) => setDrawForm((prev) => ({ ...prev, title: event.target.value }))}
+                />
+              </label>
+              <label>
+                Draw Day
+                <select
+                  value={drawForm.drawDay}
+                  onChange={(event) => setDrawForm((prev) => ({ ...prev, drawDay: event.target.value }))}
+                >
+                  <option>Monday</option>
+                  <option>Wednesday</option>
+                  <option>Friday</option>
+                </select>
+              </label>
+              <label>
+                Description
+                <textarea
+                  rows="4"
+                  value={drawForm.description}
+                  onChange={(event) => setDrawForm((prev) => ({ ...prev, description: event.target.value }))}
+                />
+              </label>
+              <label>
+                Primary Image URL
+                <input
+                  type="url"
+                  value={drawForm.imageUrl}
+                  onChange={(event) => setDrawForm((prev) => ({ ...prev, imageUrl: event.target.value }))}
+                />
+              </label>
+              <label>
+                Extra Image URLs
+                <textarea
+                  rows="3"
+                  value={drawForm.galleryImageUrls}
+                  onChange={(event) => setDrawForm((prev) => ({ ...prev, galleryImageUrls: event.target.value }))}
+                />
+              </label>
+              <label>
+                Upload Up To 3 Images
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(event) => setDrawForm((prev) => ({ ...prev, imageFile: Array.from(event.target.files || []).slice(0, 3) }))}
+                />
+              </label>
+              <label>
+                Entry Fee
+                <input
+                  type="number"
+                  value={drawForm.entryFee}
+                  onChange={(event) => setDrawForm((prev) => ({ ...prev, entryFee: event.target.value }))}
+                />
+              </label>
+              <label>
+                Prize Value
+                <input
+                  type="number"
+                  value={drawForm.prizeValue}
+                  onChange={(event) => setDrawForm((prev) => ({ ...prev, prizeValue: event.target.value }))}
+                />
+              </label>
+              <label>
+                Maximum Entries
+                <input
+                  type="number"
+                  value={drawForm.maxEntries}
+                  onChange={(event) => setDrawForm((prev) => ({ ...prev, maxEntries: event.target.value }))}
+                />
+              </label>
+              <label>
+                Go Live Mode
+                <select
+                  value={drawForm.goLiveMode}
+                  onChange={(event) => setDrawForm((prev) => ({ ...prev, goLiveMode: event.target.value }))}
+                >
+                  <option value="instant">Go Live Instantly</option>
+                  <option value="schedule">Schedule Go Live</option>
+                </select>
+              </label>
+              {drawForm.goLiveMode === 'schedule' ? (
+                <label>
+                  Start Time
+                  <input
+                    type="datetime-local"
+                    value={drawForm.scheduledAt}
+                    onChange={(event) => setDrawForm((prev) => ({ ...prev, scheduledAt: event.target.value }))}
+                  />
+                </label>
+              ) : null}
+              <label>
+                End Time
+                <input
+                  type="datetime-local"
+                  value={drawForm.endTime}
+                  onChange={(event) => setDrawForm((prev) => ({ ...prev, endTime: event.target.value }))}
+                />
+              </label>
+            </div>
+            <div className="row">
+              <button type="button" className="btn btn-primary" onClick={handleSaveDraw} disabled={isSavingDraw}>
+                {isSavingDraw ? 'Saving changes...' : 'Save Draw Changes'}
+              </button>
+              <button type="button" className="btn btn-soft" onClick={() => onCloseDraw(selectedDraw.id)}>
+                Close Draw
+              </button>
+              <button type="button" className="btn btn-soft" onClick={() => onDeleteDraw(selectedDraw.id)}>
+                Delete Draw
+              </button>
             </div>
           </section>
         ) : null}
+      </section>
+      <section className="stack">
+        <h2>Referral Insights</h2>
+        <div className="grid three">
+          <StatsCard label="Total Referred Users" value={referrals.totalReferredUsers || 0} />
+          <StatsCard
+            label="Rewarded Referrals"
+            value={(referrals.latestRelationships || []).filter((item) => item.status === 'rewarded').length}
+          />
+          <StatsCard
+            label="Top Referrer"
+            value={referrals.latestRelationships?.[0]?.referrerReferenceId || 'None'}
+          />
+        </div>
+        <AdminTable
+          columns={[
+            { key: 'referrerReferenceId', label: 'Referrer' },
+            { key: 'refereeReferenceId', label: 'Referred User' },
+            { key: 'status', label: 'Status' },
+            { key: 'totalReferralsByReferrer', label: 'Total by Referrer' },
+          ]}
+          rows={referrals.latestRelationships || []}
+        />
       </section>
     </section>
   )

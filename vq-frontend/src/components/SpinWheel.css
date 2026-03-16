@@ -42,6 +42,10 @@
   transition: transform 6s cubic-bezier(0.08, 0.95, 0.18, 1);
 }
 
+.spin-wheel.spin-priming {
+  transition: transform 0.8s linear;
+}
+
 .wheel-segment {
   position: absolute;
   inset: 0;

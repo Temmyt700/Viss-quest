@@ -9,7 +9,22 @@ export const uploadBufferToCloudinary = async (
 ) =>
   new Promise<UploadApiResponse>((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      { folder, resource_type: resourceType },
+      {
+        folder,
+        resource_type: resourceType,
+        ...(resourceType === "image"
+          ? {
+              transformation: [
+                {
+                  quality: "auto:good",
+                  fetch_format: "auto",
+                  width: 1600,
+                  crop: "limit",
+                },
+              ],
+            }
+          : {}),
+      },
       (error, result) => {
         if (error || !result) {
           reject(error ?? new Error("Upload failed."));
@@ -22,3 +37,11 @@ export const uploadBufferToCloudinary = async (
 
     Readable.from(buffer).pipe(stream);
   });
+
+export const destroyCloudinaryAsset = async (publicId?: string | null, resourceType: "image" | "raw" = "image") => {
+  if (!publicId) {
+    return;
+  }
+
+  await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+};

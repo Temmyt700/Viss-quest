@@ -1,20 +1,46 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './QuizCard.css'
 
-const quiz = {
-  question: 'Who is the current President of Nigeria?',
-  options: ['Bola Tinubu', 'Muhammadu Buhari', 'Goodluck Jonathan', 'Atiku Abubakar'],
-  correctAnswer: 'Bola Tinubu',
-  reward: 100,
-}
-
-function QuizCard({ state, onSubmit }) {
+function QuizCard({ quiz, state, onSubmit, isLoading }) {
   const [selectedOption, setSelectedOption] = useState('')
+
+  useEffect(() => {
+    setSelectedOption('')
+  }, [quiz?.id])
+
+  if (isLoading) {
+    return (
+      <section className="card quiz-card">
+        <p className="eyebrow">Daily Quiz</p>
+        <div className="stack">
+          <div className="skeleton-line skeleton-line-title" />
+          <div className="skeleton-line" />
+          <div className="skeleton-line" />
+        </div>
+      </section>
+    )
+  }
+
+  if (!quiz) {
+    return (
+      <section className="card quiz-card">
+        <p className="eyebrow">Daily Quiz</p>
+        <h3>No quiz is live right now.</h3>
+        <p className="muted">The next scheduled quiz will appear automatically when it goes live.</p>
+      </section>
+    )
+  }
+
+  const options = [
+    { key: 'A', label: quiz.optionA },
+    { key: 'B', label: quiz.optionB },
+    { key: 'C', label: quiz.optionC },
+    { key: 'D', label: quiz.optionD },
+  ]
 
   const handleSubmit = () => {
     if (!selectedOption || state.answered) return
-    const isCorrect = selectedOption === quiz.correctAnswer
-    onSubmit(isCorrect, quiz.reward)
+    onSubmit(selectedOption)
   }
 
   return (
@@ -22,21 +48,27 @@ function QuizCard({ state, onSubmit }) {
       <p className="eyebrow">Daily Quiz</p>
       <h3>{quiz.question}</h3>
       <div className="quiz-options">
-        {quiz.options.map((option) => (
-          <label key={option} className="option-item">
+        {options.map((option) => (
+          <label key={option.key} className="option-item">
             <input
               type="radio"
               name="quiz-option"
-              value={option}
-              onChange={() => setSelectedOption(option)}
+              value={option.key}
+              onChange={() => setSelectedOption(option.key)}
+              checked={selectedOption === option.key}
               disabled={state.answered}
             />
-            <span>{option}</span>
+            <span>{option.label}</span>
           </label>
         ))}
       </div>
-      <button type="button" className="btn btn-primary" onClick={handleSubmit} disabled={state.answered}>
-        Submit Answer
+      <button
+        type="button"
+        className="btn btn-primary quiz-submit-button"
+        onClick={handleSubmit}
+        disabled={state.answered}
+      >
+        {state.answered ? 'Answer Submitted' : 'Submit Answer'}
       </button>
       {state.answered ? (
         <p className={state.isCorrect ? 'result-success' : 'result-muted'}>

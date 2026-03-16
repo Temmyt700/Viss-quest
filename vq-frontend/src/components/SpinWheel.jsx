@@ -1,6 +1,27 @@
 import './SpinWheel.css'
 
-function SpinWheel({ rewards, isSpinning, rotation, disabled, onSpin }) {
+function SpinWheel({ rewards, isSpinning, isPriming, rotation, disabled, onSpin, isLoading }) {
+  if (isLoading) {
+    return (
+      <section className="card spin-card">
+        <div className="spin-stage">
+          <div className="spin-wheel spin-priming">
+            <div className="skeleton-block spin-wheel-skeleton" />
+          </div>
+        </div>
+        <p className="spin-helper">Loading today&apos;s spin...</p>
+      </section>
+    )
+  }
+
+  if (!rewards.length) {
+    return (
+      <section className="card spin-card">
+        <p className="muted">Spin rewards are not configured yet.</p>
+      </section>
+    )
+  }
+
   const segmentAngle = 360 / rewards.length
 
   return (
@@ -8,7 +29,7 @@ function SpinWheel({ rewards, isSpinning, rotation, disabled, onSpin }) {
       <div className="spin-stage">
         <div className="spin-pointer" />
         <div
-          className={`spin-wheel ${isSpinning ? 'spin' : ''}`}
+          className={`spin-wheel ${isSpinning ? 'spin' : ''} ${isPriming ? 'spin-priming' : ''}`}
           style={{ transform: `rotate(${rotation}deg)`, '--segment-angle': `${segmentAngle}deg` }}
         >
           {rewards.map((reward, index) => (
@@ -31,7 +52,13 @@ function SpinWheel({ rewards, isSpinning, rotation, disabled, onSpin }) {
         </button>
       </div>
       <p className="spin-helper">
-        {isSpinning ? 'Spinning...' : disabled ? 'Spin unavailable for now.' : 'Tap the center button to spin.'}
+        {isPriming
+          ? 'Checking your spin and getting the wheel ready...'
+          : isSpinning
+            ? 'Spinning...'
+            : disabled
+              ? 'Spin unavailable for now.'
+              : 'Tap the center button to spin.'}
       </p>
     </section>
   )

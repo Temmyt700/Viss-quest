@@ -1,4 +1,4 @@
-import { numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { index, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { users } from "./auth.js";
 
 export const fundingRequests = pgTable("funding_requests", {
@@ -12,7 +12,11 @@ export const fundingRequests = pgTable("funding_requests", {
   reviewedByUserId: text("reviewed_by_user_id").references(() => users.id),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => ({
+  userIdIdx: index("funding_requests_user_id_idx").on(table.userId),
+  statusIdx: index("funding_requests_status_idx").on(table.status),
+  createdAtIdx: index("funding_requests_created_at_idx").on(table.createdAt),
+}));
 
 export const banks = pgTable("banks", {
   id: uuid("id").defaultRandom().primaryKey(),

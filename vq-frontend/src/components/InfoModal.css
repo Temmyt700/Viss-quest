@@ -1,0 +1,5 @@
+.info-modal {
+  width: min(520px, 100%);
+  display: grid;
+  gap: 1rem;
+}

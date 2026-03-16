@@ -7,6 +7,7 @@ function Testimonials({ testimonials, canSubmit, onSubmitTestimonial }) {
     winningDate: '',
     message: '',
   })
+  const [images, setImages] = useState([])
 
   return (
     <section className="stack-lg">
@@ -18,12 +19,13 @@ function Testimonials({ testimonials, canSubmit, onSubmitTestimonial }) {
       {canSubmit ? (
         <form
           className="card testimonial-form"
-          onSubmit={(event) => {
-            event.preventDefault()
-            onSubmitTestimonial(formState)
-            setFormState({ winningDate: '', message: '' })
-          }}
-        >
+        onSubmit={(event) => {
+          event.preventDefault()
+          onSubmitTestimonial(formState, images)
+          setFormState({ winningDate: '', message: '' })
+          setImages([])
+        }}
+      >
           <div className="grid two">
             <label>
               Winning Date
@@ -37,7 +39,12 @@ function Testimonials({ testimonials, canSubmit, onSubmitTestimonial }) {
             </label>
             <label>
               Upload Images (max 3)
-              <input type="file" multiple />
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={(event) => setImages(Array.from(event.target.files || []).slice(0, 3))}
+              />
             </label>
           </div>
           <label>

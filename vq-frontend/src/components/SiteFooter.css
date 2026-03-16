@@ -1,0 +1,18 @@
+.site-footer {
+  border-top: 1px solid #e4f3e5;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 1rem 4vw 2rem;
+}
+
+.site-footer-inner {
+  width: min(1120px, 92vw);
+  margin: 0 auto;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.site-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}

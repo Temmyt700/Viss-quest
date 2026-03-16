@@ -10,3 +10,13 @@ export const createNotificationSchema = z.object({
   query: z.object({}).optional().default({}),
   params: z.object({}).optional().default({}),
 });
+
+export const updateNotificationSettingsSchema = z.object({
+  body: z.object({
+    fundingApproved: z.boolean().optional(),
+    prizeWon: z.boolean().optional(),
+    referralReward: z.boolean().optional(),
+  }),
+  query: z.object({}).optional().default({}),
+  params: z.object({}).optional().default({}),
+});

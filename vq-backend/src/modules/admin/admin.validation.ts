@@ -12,7 +12,7 @@ export const updateUserStatusSchema = z.object({
 
 export const updateUserRoleSchema = z.object({
   body: z.object({
-    role: z.enum(["user", "moderator", "admin"]),
+    role: z.enum(["user", "admin"]),
   }),
   query: z.object({}).optional().default({}),
   params: z.object({

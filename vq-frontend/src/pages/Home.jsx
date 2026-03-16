@@ -4,7 +4,7 @@ import './Home.css'
 
 const confettiPieces = Array.from({ length: 18 }, (_, index) => index)
 
-function Home({ draws, serverNow, onEnterDraw, celebration, onDismissCelebration }) {
+function Home({ draws, serverNow, onViewDraw, onEnterDraw, celebration, onDismissCelebration, isLoading }) {
   return (
     <section className="stack-lg">
       <section className="hero card">
@@ -20,9 +20,26 @@ function Home({ draws, serverNow, onEnterDraw, celebration, onDismissCelebration
           <h2>Active Prize Draws</h2>
         </div>
         <div className="grid three">
-          {draws.map((draw) => (
-            <PrizeCard key={draw.id} draw={draw} serverNow={serverNow} onEnterDraw={onEnterDraw} />
-          ))}
+          {isLoading
+            ? Array.from({ length: 3 }, (_, index) => (
+                <article key={index} className="card prize-card">
+                  <div className="skeleton-block prize-image" />
+                  <div className="prize-content stack">
+                    <div className="skeleton-line skeleton-line-title" />
+                    <div className="skeleton-line" />
+                    <div className="skeleton-line skeleton-line-short" />
+                  </div>
+                </article>
+              ))
+            : draws.map((draw) => (
+                <PrizeCard
+                  key={draw.id}
+                  draw={draw}
+                  serverNow={serverNow}
+                  onViewDraw={onViewDraw}
+                  onEnterDraw={onEnterDraw}
+                />
+              ))}
         </div>
       </section>
       {celebration ? (

@@ -19,6 +19,11 @@
   box-sizing: border-box;
 }
 
+button,
+[role='button'] {
+  cursor: pointer;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -107,6 +112,10 @@ p {
   border-radius: 999px;
   font: inherit;
   font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
   cursor: pointer;
   padding: 0.7rem 1.1rem;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -138,6 +147,15 @@ p {
 
 .btn:not(:disabled):hover {
   transform: translateY(-1px);
+}
+
+.btn-spinner {
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: btnSpin 0.8s linear infinite;
 }
 
 .eyebrow {
@@ -182,6 +200,54 @@ select:focus {
   font-weight: 700;
   cursor: pointer;
   padding: 0;
+}
+
+.form-error {
+  border-radius: 14px;
+  border: 1px solid #f3c4c1;
+  background: #fff3f2;
+  color: #b4261a;
+  padding: 0.8rem 0.9rem;
+  font-weight: 600;
+}
+
+.feedback-banner {
+  margin-bottom: 1rem;
+}
+
+.feedback-banner-error {
+  border-color: #f3c4c1;
+  background: #fff4f3;
+  color: #a9271b;
+}
+
+.skeleton-block,
+.skeleton-line {
+  background: linear-gradient(90deg, #eef6ef 25%, #f8fcf8 50%, #eef6ef 75%);
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.2s ease-in-out infinite;
+}
+
+.skeleton-block {
+  border-radius: 14px;
+}
+
+.skeleton-line {
+  height: 0.95rem;
+  border-radius: 999px;
+}
+
+.skeleton-line-title {
+  width: 62%;
+}
+
+.skeleton-line-short {
+  width: 35%;
+}
+
+.status-card {
+  display: grid;
+  gap: 0.45rem;
 }
 
 .status-pill {
@@ -272,6 +338,32 @@ select:focus {
   min-width: 0;
 }
 
+.floating-install-btn,
+.floating-info-btn {
+  position: fixed;
+  z-index: 32;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.8rem 1rem;
+  font: inherit;
+  font-weight: 700;
+  box-shadow: var(--shadow-lift);
+}
+
+.floating-install-btn {
+  left: 1rem;
+  bottom: 1rem;
+  background: #ffffff;
+  color: var(--green-900);
+}
+
+.floating-info-btn {
+  right: 1rem;
+  bottom: 1rem;
+  background: linear-gradient(130deg, var(--green-900), var(--green-500));
+  color: #ffffff;
+}
+
 @media (min-width: 700px) {
   .grid.two {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -294,5 +386,20 @@ select:focus {
 @media (max-width: 520px) {
   .grid.two {
     grid-template-columns: 1fr;
+  }
+}
+
+@keyframes btnSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes skeletonPulse {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
   }
 }

@@ -17,6 +17,7 @@ Required variables:
 - `DATABASE_URL`: Neon PostgreSQL connection string
 - `BETTER_AUTH_SECRET`: long random secret used by Better Auth
 - `BETTER_AUTH_URL`: backend base URL, for example `http://localhost:4000`
+- `ENABLE_SCHEDULER`: set `false` for local development unless you explicitly want the scheduler running
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `CLOUDINARY_CLOUD_NAME`
@@ -68,17 +69,18 @@ These are required for:
 
 ```bash
 npm run db:generate
-npm run db:push
-```
-
-If you prefer migration files:
-
-```bash
-npm run db:generate
 npm run db:migrate
 ```
 
-## 7. Start the backend locally
+## 7. Seed baseline platform data
+
+Seed the default bank accounts and spin rewards:
+
+```bash
+npm run db:seed
+```
+
+## 8. Start the backend locally
 
 ```bash
 npm run dev
@@ -91,19 +93,28 @@ npm run build
 npm start
 ```
 
-## 8. Manual follow-up tasks
+## 9. Manual follow-up tasks
 
 After generation you should still do these manually:
 
-1. Install dependencies and verify Better Auth version compatibility
-2. Run the database migration flow against Neon
-3. Seed initial admin user, spin rewards, and bank accounts
-4. Verify Better Auth callback URLs for Google OAuth
-5. Verify Cloudinary upload permissions and transformation defaults
-6. Wire the frontend from mock state to the new backend endpoints
-7. Add automated tests for wallet funding, draw entry, spin, quiz, and role enforcement
+1. Create your first admin user by registering normally, then promote that user with:
 
-## 9. Important implementation notes
+```bash
+npm run admin:promote -- --email=you@example.com
+```
+
+You can also target a reference ID instead:
+
+```bash
+npm run admin:promote -- --reference=VQ001
+```
+
+2. Verify Better Auth callback URLs for Google OAuth.
+3. Verify Cloudinary upload permissions and transformation defaults.
+4. Add real draw, quiz, and winner data through the admin UI.
+5. Add automated tests for wallet funding, draw entry, spin, quiz, and role enforcement.
+
+## 10. Important implementation notes
 
 - Wallet-sensitive operations must run in transactions
 - Moderator access should stay limited to funding review flows

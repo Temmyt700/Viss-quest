@@ -6,6 +6,7 @@ export const registerSchema = z.object({
     email: z.string().email(),
     phone: z.string().min(8),
     password: z.string().min(8),
+    referralCode: z.string().trim().min(3).optional(),
   }),
   query: z.object({}).optional().default({}),
   params: z.object({}).optional().default({}),

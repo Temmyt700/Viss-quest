@@ -1,0 +1,72 @@
+.draw-details-modal {
+  width: min(720px, 100%);
+  display: grid;
+  gap: 1rem;
+}
+
+.draw-details-gallery {
+  position: relative;
+}
+
+.draw-details-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 18px;
+}
+
+.draw-gallery-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(16, 33, 15, 0.72);
+  color: #fff;
+  font-size: 1.4rem;
+}
+
+.draw-gallery-nav.prev {
+  left: 0.85rem;
+}
+
+.draw-gallery-nav.next {
+  right: 0.85rem;
+}
+
+.draw-gallery-dots {
+  position: absolute;
+  left: 50%;
+  bottom: 0.85rem;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.4rem;
+}
+
+.draw-gallery-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.draw-gallery-dot.active {
+  background: #fff;
+}
+
+.draw-details-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 640px) {
+  .draw-details-grid {
+    grid-template-columns: 1fr;
+  }
+}

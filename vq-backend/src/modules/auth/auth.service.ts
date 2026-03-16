@@ -4,12 +4,14 @@ import { auth } from "../../config/auth.js";
 import { db } from "../../db/client.js";
 import { users, wallets } from "../../db/schema/index.js";
 import { generateReferenceId } from "../../utils/referenceId.js";
+import { referralsService } from "../referrals/referrals.service.js";
 
 type RegisterInput = {
   fullName: string;
   email: string;
   phone: string;
   password: string;
+  referralCode?: string;
 };
 
 type LoginInput = {
@@ -57,6 +59,9 @@ export const authService = {
         balance: "0",
       });
     });
+
+    // Attach the referral after the new user exists and has a stable reference id.
+    await referralsService.attachReferral(result.response.user.id, input.referralCode);
 
     const [user] = await db.select().from(users).where(eq(users.id, result.response.user.id)).limit(1);
     return user;

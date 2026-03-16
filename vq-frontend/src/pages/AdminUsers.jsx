@@ -16,7 +16,7 @@ function AdminUsers({ users, onViewUser, onBanToggle, onRoleChange }) {
     <section className="stack-lg">
       <header className="card">
         <h1>Users</h1>
-        <p className="muted">Search by full name or Reference ID and manage account status.</p>
+        <p className="muted">Search by full name or Reference ID and manage account access.</p>
       </header>
       <label className="card">
         Search Users
@@ -27,12 +27,6 @@ function AdminUsers({ users, onViewUser, onBanToggle, onRoleChange }) {
           onChange={(event) => setQuery(event.target.value)}
         />
       </label>
-      <section className="card">
-        <p className="muted">
-          Moderators can approve wallet deposits and suspend accounts, but cannot delete users or
-          change admin settings.
-        </p>
-      </section>
       <UserTable
         users={filteredUsers}
         onViewUser={onViewUser}

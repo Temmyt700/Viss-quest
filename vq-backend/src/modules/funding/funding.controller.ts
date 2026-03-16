@@ -13,7 +13,7 @@ export const fundingController = {
   },
 
   async listPending(_req: Request, res: Response) {
-    const items = await fundingService.listPending();
+    const items = await fundingService.listModerationQueue();
     res.status(200).json({ fundingRequests: items });
   },
 

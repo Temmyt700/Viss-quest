@@ -1,4 +1,4 @@
-import { boolean, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const quizzes = pgTable("quizzes", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -15,7 +15,12 @@ export const quizzes = pgTable("quizzes", {
   activeUntil: timestamp("active_until", { withTimezone: true }),
   isActive: boolean("is_active").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => ({
+  isActiveIdx: index("quizzes_is_active_idx").on(table.isActive),
+  activeFromIdx: index("quizzes_active_from_idx").on(table.activeFrom),
+  scheduledAtIdx: index("quizzes_scheduled_at_idx").on(table.scheduledAt),
+  createdAtIdx: index("quizzes_created_at_idx").on(table.createdAt),
+}));
 
 export const quizAttempts = pgTable("quiz_attempts", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -25,4 +30,8 @@ export const quizAttempts = pgTable("quiz_attempts", {
   isCorrect: boolean("is_correct").notNull(),
   rewardAmount: numeric("reward_amount", { precision: 12, scale: 2 }).notNull().default("0"),
   attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => ({
+  userIdIdx: index("quiz_attempts_user_id_idx").on(table.userId),
+  quizIdIdx: index("quiz_attempts_quiz_id_idx").on(table.quizId),
+  attemptedAtIdx: index("quiz_attempts_attempted_at_idx").on(table.attemptedAt),
+}));

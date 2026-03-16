@@ -1,45 +1,103 @@
-import { useState } from 'react'
-import AdminTable from '../components/AdminTable'
+import { useEffect, useState } from 'react'
 
-function AdminQuiz({ scheduledQuizzes }) {
-  const [goLiveMode, setGoLiveMode] = useState('instant')
+const emptyFormState = {
+  question: '',
+  optionA: '',
+  optionB: '',
+  optionC: '',
+  optionD: '',
+  correctAnswer: 'A',
+  rewardAmount: '',
+  goLiveMode: 'instant',
+  scheduledAt: '',
+}
+
+function AdminQuiz({ scheduledQuizzes, onCreateQuiz, onUpdateQuiz, onDeleteQuiz, onPublishQuiz }) {
+  const [formState, setFormState] = useState(emptyFormState)
+  const [editingQuiz, setEditingQuiz] = useState(null)
+  const [isSaving, setIsSaving] = useState(false)
+
+  const updateField = (field, value) => {
+    setFormState((prev) => ({ ...prev, [field]: value }))
+  }
+
+  useEffect(() => {
+    if (!editingQuiz) {
+      setFormState(emptyFormState)
+      return
+    }
+
+    setFormState({
+      question: editingQuiz.question,
+      optionA: editingQuiz.optionA || '',
+      optionB: editingQuiz.optionB || '',
+      optionC: editingQuiz.optionC || '',
+      optionD: editingQuiz.optionD || '',
+      correctAnswer: editingQuiz.correctAnswer || 'A',
+      rewardAmount: String(editingQuiz.rewardAmount || ''),
+      goLiveMode: editingQuiz.goLiveMode || 'instant',
+      scheduledAt: editingQuiz.scheduledAt ? new Date(editingQuiz.scheduledAt).toISOString().slice(0, 16) : '',
+    })
+  }, [editingQuiz])
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    if (isSaving) return
+
+    setIsSaving(true)
+    try {
+      if (editingQuiz) {
+        await onUpdateQuiz(editingQuiz.id, formState)
+      } else {
+        await onCreateQuiz(formState)
+      }
+      setEditingQuiz(null)
+      setFormState(emptyFormState)
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   return (
     <section className="stack-lg">
       <header className="card">
         <h1>Daily Quiz Scheduling</h1>
         <p className="muted">
-          Schedule quizzes ahead of time. Each quiz stays active for 24 hours, then the next one
-          activates automatically.
+          Schedule quizzes ahead of time. When a new quiz goes live, it replaces the previous active quiz.
         </p>
       </header>
-      <form className="card auth-card">
+      <form className="card auth-card" onSubmit={handleSubmit}>
         <label>
           Question
-          <textarea rows="3" placeholder="Who is the current President of Nigeria?" />
+          <textarea
+            rows="3"
+            placeholder="Who is the current President of Nigeria?"
+            value={formState.question}
+            onChange={(event) => updateField('question', event.target.value)}
+          />
         </label>
         <div className="grid two">
           <label>
             Option A
-            <input type="text" placeholder="Bola Tinubu" />
+            <input type="text" value={formState.optionA} onChange={(event) => updateField('optionA', event.target.value)} />
           </label>
           <label>
             Option B
-            <input type="text" placeholder="Muhammadu Buhari" />
+            <input type="text" value={formState.optionB} onChange={(event) => updateField('optionB', event.target.value)} />
           </label>
           <label>
             Option C
-            <input type="text" placeholder="Goodluck Jonathan" />
+            <input type="text" value={formState.optionC} onChange={(event) => updateField('optionC', event.target.value)} />
           </label>
           <label>
             Option D
-            <input type="text" placeholder="Atiku Abubakar" />
+            <input type="text" value={formState.optionD} onChange={(event) => updateField('optionD', event.target.value)} />
           </label>
         </div>
         <div className="grid two">
           <label>
             Correct Answer
-            <select>
+            <select value={formState.correctAnswer} onChange={(event) => updateField('correctAnswer', event.target.value)}>
               <option>A</option>
               <option>B</option>
               <option>C</option>
@@ -48,35 +106,69 @@ function AdminQuiz({ scheduledQuizzes }) {
           </label>
           <label>
             Reward Amount
-            <input type="number" placeholder="50" />
+            <input type="number" value={formState.rewardAmount} onChange={(event) => updateField('rewardAmount', event.target.value)} />
           </label>
         </div>
         <label>
           Go Live Mode
-          <select value={goLiveMode} onChange={(event) => setGoLiveMode(event.target.value)}>
+          <select value={formState.goLiveMode} onChange={(event) => updateField('goLiveMode', event.target.value)}>
             <option value="instant">Go Live Instantly</option>
             <option value="schedule">Schedule Go Live</option>
           </select>
         </label>
-        {goLiveMode === 'schedule' ? (
+        {formState.goLiveMode === 'schedule' ? (
           <label>
             Scheduled Time
-            <input type="datetime-local" />
+            <input type="datetime-local" value={formState.scheduledAt} onChange={(event) => updateField('scheduledAt', event.target.value)} />
           </label>
         ) : null}
-        <button type="button" className="btn btn-primary">
-          {goLiveMode === 'instant' ? 'Publish Quiz Now' : 'Schedule Quiz'}
-        </button>
+        <div className="row">
+          <button type="submit" className="btn btn-primary" disabled={isSaving}>
+            {isSaving ? 'Saving quiz...' : editingQuiz ? 'Save Quiz Changes' : formState.goLiveMode === 'instant' ? 'Publish Quiz Now' : 'Schedule Quiz'}
+          </button>
+          {editingQuiz ? (
+            <button type="button" className="btn btn-soft" onClick={() => setEditingQuiz(null)}>
+              Cancel Edit
+            </button>
+          ) : null}
+        </div>
       </form>
-      <AdminTable
-        columns={[
-          { key: 'question', label: 'Question' },
-          { key: 'rewardAmount', label: 'Reward' },
-          { key: 'scheduledTime', label: 'Scheduled Time' },
-          { key: 'activeWindow', label: 'Active Window' },
-        ]}
-        rows={scheduledQuizzes}
-      />
+      <div className="table-wrap card">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Question</th>
+              <th>Reward</th>
+              <th>Scheduled Time</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {scheduledQuizzes.map((quiz) => (
+              <tr key={quiz.id}>
+                <td>{quiz.question}</td>
+                <td>N {quiz.rewardAmount.toLocaleString()}</td>
+                <td>{quiz.scheduledTime}</td>
+                <td>{quiz.status || 'scheduled'}</td>
+                <td>
+                  <div className="user-actions">
+                    <button type="button" className="btn btn-soft" onClick={() => setEditingQuiz(quiz)}>
+                      View
+                    </button>
+                    <button type="button" className="btn btn-soft" onClick={() => onPublishQuiz(quiz.id)}>
+                      Publish
+                    </button>
+                    <button type="button" className="btn btn-soft" onClick={() => onDeleteQuiz(quiz.id)}>
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   )
 }

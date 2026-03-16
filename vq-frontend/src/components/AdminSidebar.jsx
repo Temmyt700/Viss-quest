@@ -6,6 +6,8 @@ const adminLinks = [
   { path: '/admin/participants', label: 'Participants' },
   { path: '/admin/deposits', label: 'Wallet Deposits' },
   { path: '/admin/wallet-stats', label: 'Wallet Stats' },
+  { path: '/admin/spin-settings', label: 'Spin Settings' },
+  { path: '/admin/notifications', label: 'Notifications' },
   { path: '/admin/banks', label: 'Banks' },
   { path: '/admin/winners', label: 'Winners' },
   { path: '/admin/quiz', label: 'Daily Quiz' },

@@ -1,6 +1,25 @@
+import { useState } from 'react'
 import AdminTable from '../components/AdminTable'
 
-function AdminUserDetail({ user, history, onBanToggle, onRoleChange }) {
+function AdminUserDetail({ user, history, isLoading, errorMessage, onBanToggle, onRoleChange, onAdjustWallet }) {
+  const [adjustment, setAdjustment] = useState({ amount: '', reason: '' })
+
+  if (isLoading) {
+    return (
+      <section className="card">
+        <p className="muted">Loading user details...</p>
+      </section>
+    )
+  }
+
+  if (errorMessage) {
+    return (
+      <section className="card">
+        <p className="muted">{errorMessage}</p>
+      </section>
+    )
+  }
+
   if (!user) {
     return (
       <section className="card">
@@ -36,11 +55,46 @@ function AdminUserDetail({ user, history, onBanToggle, onRoleChange }) {
         <button type="button" className="btn btn-soft" onClick={() => onBanToggle(user.id)}>
           {user.accountStatus === 'Suspended' ? 'Unban User' : 'Ban User'}
         </button>
+        {/* Keep role changes aligned with the simplified admin-only access model. */}
         <select value={user.role} onChange={(event) => onRoleChange(user.id, event.target.value)}>
           <option value="user">User</option>
-          <option value="moderator">Moderator</option>
+          <option value="admin">Admin</option>
         </select>
       </div>
+      <section className="card stack">
+        <h3>Adjust Wallet</h3>
+        <div className="grid two">
+          <label>
+            Amount
+            <input
+              type="number"
+              placeholder="500 or -500"
+              value={adjustment.amount}
+              onChange={(event) => setAdjustment((prev) => ({ ...prev, amount: event.target.value }))}
+            />
+          </label>
+          <label>
+            Reason
+            <input
+              type="text"
+              placeholder="Bonus, correction, refund"
+              value={adjustment.reason}
+              onChange={(event) => setAdjustment((prev) => ({ ...prev, reason: event.target.value }))}
+            />
+          </label>
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={async () => {
+            await onAdjustWallet(user.id, Number(adjustment.amount), adjustment.reason)
+            setAdjustment({ amount: '', reason: '' })
+          }}
+          disabled={!adjustment.amount || !adjustment.reason}
+        >
+          Save Wallet Adjustment
+        </button>
+      </section>
       <AdminTable
         columns={[
           { key: 'date', label: 'Wallet History Date' },
