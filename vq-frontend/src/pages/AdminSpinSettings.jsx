@@ -9,6 +9,10 @@ function AdminSpinSettings({ spinSettings, onSaveSettings, onSaveReward }) {
     dailySpinLimit: 1,
   })
   const [rewardDrafts, setRewardDrafts] = useState([])
+  const [isSavingSettings, setIsSavingSettings] = useState(false)
+  const [savingRewardId, setSavingRewardId] = useState('')
+  const [settingsSaved, setSettingsSaved] = useState(false)
+  const [savedRewardId, setSavedRewardId] = useState('')
 
   useEffect(() => {
     setSettingsForm({
@@ -18,6 +22,8 @@ function AdminSpinSettings({ spinSettings, onSaveSettings, onSaveReward }) {
       dailySpinLimit: spinSettings.dailySpinLimit,
     })
     setRewardDrafts(spinSettings.rewards)
+    setSettingsSaved(false)
+    setSavedRewardId('')
   }, [spinSettings])
 
   const updateSetting = (field, value) => {
@@ -28,6 +34,34 @@ function AdminSpinSettings({ spinSettings, onSaveSettings, onSaveReward }) {
     setRewardDrafts((prev) =>
       prev.map((reward) => (reward.id === rewardId ? { ...reward, [field]: value } : reward)),
     )
+  }
+
+  const handleSaveSettings = async () => {
+    if (isSavingSettings) return
+
+    setIsSavingSettings(true)
+    try {
+      await onSaveSettings(settingsForm)
+      setSettingsSaved(true)
+      window.setTimeout(() => setSettingsSaved(false), 1500)
+    } finally {
+      setIsSavingSettings(false)
+    }
+  }
+
+  const handleSaveReward = async (rewardId, reward) => {
+    if (savingRewardId) return
+
+    setSavingRewardId(rewardId)
+    try {
+      await onSaveReward(rewardId, reward)
+      setSavedRewardId(rewardId)
+      window.setTimeout(() => {
+        setSavedRewardId((current) => (current === rewardId ? '' : current))
+      }, 1500)
+    } finally {
+      setSavingRewardId('')
+    }
   }
 
   return (
@@ -42,8 +76,13 @@ function AdminSpinSettings({ spinSettings, onSaveSettings, onSaveReward }) {
       <section className="card stack">
         <div className="row spread">
           <h2>Core Rules</h2>
-          <button type="button" className="btn btn-primary" onClick={() => onSaveSettings(settingsForm)}>
-            Save Spin Rules
+          <button
+            type="button"
+            className={`btn btn-primary ${isSavingSettings ? 'is-loading' : ''}`}
+            onClick={handleSaveSettings}
+            disabled={isSavingSettings}
+          >
+            {isSavingSettings ? 'Saving...' : settingsSaved ? 'Saved' : 'Save Spin Rules'}
           </button>
         </div>
         <div className="grid two">
@@ -108,6 +147,7 @@ function AdminSpinSettings({ spinSettings, onSaveSettings, onSaveReward }) {
                   <option value="cash">Cash</option>
                   <option value="free_entry">Free Entry</option>
                   <option value="none">No Reward</option>
+                  <option value="try_again">Try Again</option>
                 </select>
               </label>
               <label>
@@ -138,8 +178,13 @@ function AdminSpinSettings({ spinSettings, onSaveSettings, onSaveReward }) {
                   <option value="false">Inactive</option>
                 </select>
               </label>
-              <button type="button" className="btn btn-soft" onClick={() => onSaveReward(reward.id, reward)}>
-                Save Reward
+              <button
+                type="button"
+                className={`btn btn-soft ${savingRewardId === reward.id ? 'is-loading' : ''}`}
+                onClick={() => handleSaveReward(reward.id, reward)}
+                disabled={Boolean(savingRewardId)}
+              >
+                {savingRewardId === reward.id ? 'Saving...' : savedRewardId === reward.id ? 'Saved' : 'Save Reward'}
               </button>
             </article>
           ))}

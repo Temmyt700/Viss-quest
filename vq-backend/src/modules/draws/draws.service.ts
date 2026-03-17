@@ -4,6 +4,7 @@ import { drawEntries, drawPrizeImages, drawPrizes, draws, users, walletTransacti
 import { getAutomatedStatus } from "../../utils/drawLogic.js";
 import { toNumber } from "../../utils/money.js";
 import { destroyCloudinaryAsset, uploadBufferToCloudinary } from "../../utils/upload.js";
+import { winnersService } from "../winners/winners.service.js";
 
 type DrawPrizeInput = {
   title: string;
@@ -39,7 +40,8 @@ type UpdateDrawInput = {
   status?: string;
 };
 
-const OPEN_DRAW_STATUSES = ["draft", "available", "almost_filled", "closing_soon", "limited_slots", "filled"] as const;
+const ACTIVE_DRAW_STATUSES = ["active", "available", "almost_filled", "closing_soon", "limited_slots", "filled"] as const;
+const TERMINAL_DRAW_STATUSES = ["closed", "winner_pending", "winner_announced", "deleted"] as const;
 
 type DrawPrizeImageRow = typeof drawPrizeImages.$inferSelect;
 
@@ -93,10 +95,10 @@ const getStartAndEndTimes = (goLiveMode: "instant" | "schedule", startTime?: str
 
 const getDrawStatus = (goLiveMode: "instant" | "schedule", explicitStatus?: string) => {
   if (explicitStatus) {
-    return explicitStatus;
+    return ["closed", "winner_pending", "winner_announced", "deleted"].includes(explicitStatus) ? explicitStatus : "active";
   }
 
-  return goLiveMode === "instant" ? "available" : "available";
+  return goLiveMode === "instant" ? "active" : "active";
 };
 
 const ensureSlotIsAvailable = async (tx: any, slotNumber: number, excludeDrawId?: string) => {
@@ -110,7 +112,7 @@ const ensureSlotIsAvailable = async (tx: any, slotNumber: number, excludeDrawId?
     .where(
       and(
         eq(draws.slotNumber, slotNumber),
-        inArray(draws.status, [...OPEN_DRAW_STATUSES]),
+        inArray(draws.status, [...ACTIVE_DRAW_STATUSES]),
         excludeDrawId ? ne(draws.id, excludeDrawId) : sql`true`,
       ),
     )
@@ -129,8 +131,40 @@ const normalizeImageUrls = (imageUrl?: string, imageUrls?: string[]) => {
   return Array.from(new Set(nextUrls.filter(Boolean))).slice(0, 3);
 };
 
+const remoteImagePattern = /\.(avif|gif|jpe?g|png|svg|webp)(?:$|[?#])/i;
+
+const validateRemoteImageUrl = async (imageUrl: string) => {
+  const url = new URL(imageUrl);
+  if (!["http:", "https:"].includes(url.protocol)) {
+    throw new Error("Only HTTP or HTTPS image URLs are allowed.");
+  }
+
+  if (remoteImagePattern.test(url.pathname)) {
+    return;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(imageUrl, {
+      method: "HEAD",
+      signal: controller.signal,
+    });
+    const contentType = response.headers.get("content-type") ?? "";
+
+    if (!response.ok || !contentType.startsWith("image/")) {
+      throw new Error("The image URL must point to a valid image.");
+    }
+  } catch {
+    throw new Error("We could not verify that image URL. Please use a direct image link or upload the file.");
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 const uploadPrizeImages = async (files: Express.Multer.File[] = [], fallbackUrls: string[] = []) => {
   if (!files.length) {
+    await Promise.all(fallbackUrls.map((imageUrl) => validateRemoteImageUrl(imageUrl)));
     return fallbackUrls.map((imageUrl) => ({
       imageUrl,
       imagePublicId: null as string | null,
@@ -160,11 +194,7 @@ export const drawsService = {
 
     return mapDrawRows(
       drawRows.filter((draw) => {
-        if (draw.status === "closed" || draw.status === "deleted") {
-          return false;
-        }
-
-        if (draw.endTime && draw.endTime <= now) {
+        if (draw.status === "deleted") {
           return false;
         }
 
@@ -173,7 +203,7 @@ export const drawsService = {
         }
 
         return draw.startTime ? draw.startTime <= now : true;
-      }),
+      }).filter((draw, index, rows) => rows.findIndex((item) => item.slotNumber === draw.slotNumber) === index),
       prizeRows,
       imageRows,
       now,
@@ -288,6 +318,13 @@ export const drawsService = {
       const [draw] = await tx.select().from(draws).where(eq(draws.id, prize.drawId)).limit(1);
       if (!draw) {
         throw new Error("Draw not found.");
+      }
+
+      // Closed and historical draws already have entries and potentially a
+      // winner trail attached. Reusing them for a fresh campaign corrupts the
+      // participation lifecycle, so admins must create a new draw instead.
+      if (TERMINAL_DRAW_STATUSES.includes(draw.status as typeof TERMINAL_DRAW_STATUSES[number])) {
+        throw new Error("Closed or completed draws cannot be edited. Create a new draw for this slot instead.");
       }
 
       const { startTime, endTime } = getStartAndEndTimes(input.goLiveMode, input.startTime, input.endTime);
@@ -414,9 +451,18 @@ export const drawsService = {
 
       const [wallet] = await tx.select().from(wallets).where(eq(wallets.userId, userId)).limit(1);
       const [user] = await tx.select().from(users).where(eq(users.id, userId)).limit(1);
+      const [existingEntry] = await tx
+        .select({ id: drawEntries.id })
+        .from(drawEntries)
+        .where(and(eq(drawEntries.drawPrizeId, drawPrizeId), eq(drawEntries.userId, userId)))
+        .limit(1);
 
       if (!wallet || !user) {
         throw new Error("User wallet not found.");
+      }
+
+      if (existingEntry) {
+        throw new Error("You have already entered this draw.");
       }
 
       const balance = toNumber(wallet.balance);
@@ -460,10 +506,10 @@ export const drawsService = {
       });
 
       if (nextEntries >= prize.maxEntries) {
-        await tx.update(draws).set({ status: "filled", updatedAt: new Date() }).where(eq(draws.id, drawId));
+        await tx.update(draws).set({ status: "closed", updatedAt: new Date() }).where(eq(draws.id, drawId));
       }
 
-      return { success: true };
+      return { success: true, shouldPickWinner: nextEntries >= prize.maxEntries };
     });
   },
 
@@ -472,6 +518,18 @@ export const drawsService = {
       const [prize] = await tx.select().from(drawPrizes).where(eq(drawPrizes.id, drawPrizeId)).limit(1);
       if (!prize) {
         throw new Error("Draw prize not found.");
+      }
+
+      const [draw] = await tx.select().from(draws).where(eq(draws.id, prize.drawId)).limit(1);
+      if (!draw) {
+        throw new Error("Draw not found.");
+      }
+
+      if (
+        TERMINAL_DRAW_STATUSES.includes(draw.status as typeof TERMINAL_DRAW_STATUSES[number])
+        && !["closed", "winner_pending", "winner_announced"].includes(status)
+      ) {
+        throw new Error("Closed or completed draws cannot be reopened. Create a new draw instead.");
       }
 
       await tx
@@ -485,7 +543,7 @@ export const drawsService = {
       await tx
         .update(draws)
         .set({
-          status: status === "auto" ? "available" : status,
+          status: status === "auto" ? "active" : status,
           updatedAt: new Date(),
         })
         .where(eq(draws.id, prize.drawId));
@@ -525,6 +583,7 @@ export const drawsService = {
         .where(eq(drawPrizes.id, prize.id));
 
       await db.update(draws).set({ status: "closed", updatedAt: new Date() }).where(eq(draws.id, prize.drawId));
+      await winnersService.selectForDraw(prize.drawId).catch(() => null);
     }
   },
 };

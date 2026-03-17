@@ -6,6 +6,7 @@ function InfoModal({ isOpen, onClose }) {
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true">
       <div className="modal-card info-modal">
+        <span className="info-modal-badge" aria-hidden="true">?</span>
         <p className="eyebrow">Welcome to VissQuest</p>
         <h3>Take chances. Get lucky. Win big.</h3>
         <div className="stack">

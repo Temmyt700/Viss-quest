@@ -2,7 +2,7 @@ import StatsCard from '../components/StatsCard'
 import { formatCurrency } from '../utils/format'
 import './Dashboard.css'
 
-function Dashboard({ user, recentEntries, notificationsUnreadCount, onNavigate, isLoading }) {
+function Dashboard({ user, recentEntries, notificationsUnreadCount, onNavigate, canOpenTestimonials, testimonial, isLoading }) {
   const referralSummary = user.referralSummary || {
     referralCode: user.referenceId,
     totalReferrals: 0,
@@ -48,17 +48,21 @@ function Dashboard({ user, recentEntries, notificationsUnreadCount, onNavigate, 
             type="button"
             className="btn btn-soft"
             onClick={() => onNavigate('/testimonials')}
-            disabled={user.wins === 0}
+            disabled={!canOpenTestimonials}
           >
             Testimonials
           </button>
         </div>
       </section>
 
-      {user.wins > 0 ? (
+      {user.winnerNotice ? (
         <section className="card dashboard-winner-note">
           <strong>Winner Notice</strong>
-          <p>You have won a prize. Please submit your testimonial and proof once you receive your prize.</p>
+          <p>{user.winnerNotice.message}</p>
+          <p className="muted">
+            Winning reference: {user.winnerNotice.referenceId}
+            {user.winnerNotice.slotNumber ? ` | Draw Slot ${user.winnerNotice.slotNumber}` : ''}
+          </p>
         </section>
       ) : null}
 
@@ -132,6 +136,20 @@ function Dashboard({ user, recentEntries, notificationsUnreadCount, onNavigate, 
               ))}
         </div>
       </section>
+
+      {testimonial ? (
+        <section className="card stack">
+          <div className="row spread">
+            <h2>Your Testimonial</h2>
+            <button type="button" className="btn btn-soft" onClick={() => onNavigate('/testimonials')}>
+              Edit Testimonial
+            </button>
+          </div>
+          <p className="eyebrow">{testimonial.prizeTitle}</p>
+          <p>{testimonial.message}</p>
+          <p className="muted">{testimonial.winningDate}</p>
+        </section>
+      ) : null}
     </section>
   )
 }

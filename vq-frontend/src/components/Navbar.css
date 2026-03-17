@@ -62,6 +62,7 @@
   line-height: 1.1;
   overflow: hidden;
   cursor: pointer;
+  transition: transform 0.16s ease, filter 0.16s ease, opacity 0.16s ease, box-shadow 0.16s ease;
 }
 
 .nav-link.active {
@@ -78,6 +79,25 @@
   text-overflow: ellipsis;
 }
 
+.nav-link-loading-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.nav-link-spinner {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex-shrink: 0;
+}
+
+.nav-link.is-loading,
+.nav-link:disabled {
+  opacity: 0.92;
+  transform: none;
+}
+
 .nav-link-auth-desktop {
   display: none;
 }
@@ -87,16 +107,6 @@
   align-items: center;
   gap: 0.7rem;
   justify-content: flex-end;
-}
-
-.nav-info-trigger {
-  width: 2.4rem;
-  height: 2.4rem;
-  border: 1px solid #d9ecd9;
-  border-radius: 50%;
-  background: #f7fdf7;
-  color: var(--green-900);
-  font-weight: 800;
 }
 
 @media (min-width: 768px) {

@@ -22,6 +22,8 @@
 button,
 [role='button'] {
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.14s ease, filter 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease;
 }
 
 body {
@@ -123,7 +125,8 @@ p {
 
 .btn:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  opacity: 0.68;
+  filter: saturate(0.85);
 }
 
 .btn-primary {
@@ -147,6 +150,28 @@ p {
 
 .btn:not(:disabled):hover {
   transform: translateY(-1px);
+}
+
+.btn:not(:disabled):active,
+button:not(:disabled):active,
+[role='button']:not([aria-disabled='true']):active {
+  transform: translateY(1px) scale(0.97);
+  filter: brightness(0.9);
+  box-shadow: inset 0 0 0 999px rgba(0, 0, 0, 0.04);
+}
+
+button:focus-visible,
+[role='button']:focus-visible {
+  outline: 3px solid rgba(82, 199, 85, 0.34);
+  outline-offset: 2px;
+}
+
+.btn[aria-busy='true'],
+button[aria-busy='true'],
+.btn.is-loading,
+button.is-loading {
+  pointer-events: none;
+  opacity: 0.86;
 }
 
 .btn-spinner {
@@ -219,6 +244,23 @@ select:focus {
   border-color: #f3c4c1;
   background: #fff4f3;
   color: #a9271b;
+}
+
+.feedback-banner-warning {
+  border-color: #f3e1b4;
+  background: #fff9ea;
+  color: #8a6200;
+}
+
+.admin-testimonial-modal {
+  width: min(540px, 100%);
+  gap: 1rem;
+  padding: 1.15rem;
+}
+
+.admin-testimonial-modal textarea {
+  min-height: 130px;
+  resize: vertical;
 }
 
 .skeleton-block,
@@ -308,13 +350,13 @@ select:focus {
 }
 
 .draw-status.status-almost_filled {
-  background: #ffedd6;
-  color: #b25f00;
+  background: #fff7cc;
+  color: #8d7200;
 }
 
 .draw-status.status-closing_soon {
-  background: #fff7cc;
-  color: #8d7200;
+  background: #ffedd6;
+  color: #b25f00;
 }
 
 .draw-status.status-limited_slots {
@@ -355,13 +397,21 @@ select:focus {
   bottom: 1rem;
   background: #ffffff;
   color: var(--green-900);
+  min-width: 3.2rem;
 }
 
 .floating-info-btn {
   right: 1rem;
   bottom: 1rem;
-  background: linear-gradient(130deg, var(--green-900), var(--green-500));
-  color: #ffffff;
+  background: linear-gradient(130deg, rgba(255, 255, 255, 0.95), rgba(237, 249, 238, 0.95));
+  color: var(--green-900);
+  border: 1px solid #d6ead8;
+}
+
+.floating-btn-icon {
+  display: none;
+  font-size: 1.15rem;
+  line-height: 1;
 }
 
 @media (min-width: 700px) {
@@ -386,6 +436,20 @@ select:focus {
 @media (max-width: 520px) {
   .grid.two {
     grid-template-columns: 1fr;
+  }
+
+  .floating-install-btn {
+    width: 3rem;
+    height: 3rem;
+    padding: 0;
+  }
+
+  .floating-btn-label {
+    display: none;
+  }
+
+  .floating-btn-icon {
+    display: inline;
   }
 }
 

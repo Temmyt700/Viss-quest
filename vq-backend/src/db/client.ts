@@ -8,7 +8,7 @@ const sql = postgres(env.DATABASE_URL, {
   prepare: false,
   // Fail faster when the remote database host is unavailable so requests
   // return a clean temporary-unavailable response instead of hanging.
-  connect_timeout: 10,
+  connect_timeout: 5,
   idle_timeout: 20,
   max_lifetime: 60 * 30,
 });

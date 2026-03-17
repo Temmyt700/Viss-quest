@@ -2,9 +2,30 @@ import { eq } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { banks } from "../../db/schema/index.js";
 
+const DEFAULT_BANKS = [
+  {
+    bankName: "Providus Bank",
+    accountName: "VissQuest Technologies",
+    accountNumber: "1234567890",
+  },
+  {
+    bankName: "Moniepoint MFB",
+    accountName: "VissQuest Collections",
+    accountNumber: "1029384756",
+  },
+];
+
 export const banksService = {
   async list() {
-    return db.select().from(banks);
+    const items = await db.select().from(banks);
+    if (items.length) {
+      return items;
+    }
+
+    // Funding should never fail with a blank bank section because the bank
+    // table was cleared accidentally. Seed the default payout accounts back in
+    // when the table is empty so the wallet flow stays usable.
+    return db.insert(banks).values(DEFAULT_BANKS).returning();
   },
 
   async create(input: { bankName: string; accountName: string; accountNumber: string }) {

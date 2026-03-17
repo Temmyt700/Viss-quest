@@ -1,6 +1,6 @@
 import './TestimonialCard.css'
 
-function TestimonialCard({ testimonial }) {
+function TestimonialCard({ testimonial, onViewImages }) {
   return (
     <article className="card testimonial-card">
       <div className="row spread">
@@ -14,7 +14,14 @@ function TestimonialCard({ testimonial }) {
       <p>{testimonial.message}</p>
       <div className="testimonial-images">
         {testimonial.images.map((image, index) => (
-          <img key={`${testimonial.id}-${index}`} src={image} alt={testimonial.prizeTitle} />
+          <button
+            key={`${testimonial.id}-${index}`}
+            type="button"
+            className="testimonial-image-btn"
+            onClick={() => onViewImages?.(testimonial, index)}
+          >
+            <img src={image} alt={testimonial.prizeTitle} />
+          </button>
         ))}
       </div>
     </article>

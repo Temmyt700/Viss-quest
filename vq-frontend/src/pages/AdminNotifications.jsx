@@ -36,8 +36,9 @@ function AdminNotifications({ settings, notifications, onSendNotification, onUpd
         </label>
         <button
           type="button"
-          className="btn btn-primary"
+          className={`btn btn-primary ${isSubmitting ? 'is-loading' : ''}`}
           disabled={isSubmitting || !formState.title.trim() || !formState.message.trim()}
+          aria-busy={isSubmitting}
           onClick={async () => {
             setIsSubmitting(true)
             try {
@@ -52,7 +53,14 @@ function AdminNotifications({ settings, notifications, onSendNotification, onUpd
             }
           }}
         >
-          Send to all users
+          {isSubmitting ? (
+            <>
+              <span className="btn-spinner" aria-hidden="true" />
+              Sending...
+            </>
+          ) : (
+            'Send to all users'
+          )}
         </button>
       </section>
 

@@ -35,6 +35,7 @@ function AdminDashboard({
   const [selectedDraw, setSelectedDraw] = useState(null)
   const [drawForm, setDrawForm] = useState(null)
   const [isSavingDraw, setIsSavingDraw] = useState(false)
+  const [busyDrawAction, setBusyDrawAction] = useState(null)
 
   useEffect(() => {
     setDrawForm(selectedDraw ? buildDrawForm(selectedDraw) : null)
@@ -49,6 +50,20 @@ function AdminDashboard({
       setSelectedDraw(null)
     } finally {
       setIsSavingDraw(false)
+    }
+  }
+
+  const runDrawAction = async (drawId, action, handler) => {
+    if (busyDrawAction) return
+
+    setBusyDrawAction({ drawId, action })
+    try {
+      await handler(drawId)
+      if (selectedDraw?.id === drawId && action === 'delete') {
+        setSelectedDraw(null)
+      }
+    } finally {
+      setBusyDrawAction(null)
     }
   }
 
@@ -128,11 +143,37 @@ function AdminDashboard({
                         <option value="filled">Filled</option>
                         <option value="closed">Closed</option>
                       </select>
-                      <button type="button" className="btn btn-primary" onClick={() => onCloseDraw(draw.id)}>
-                        Close Draw
+                      <button
+                        type="button"
+                        className={`btn btn-primary ${busyDrawAction?.drawId === draw.id && busyDrawAction?.action === 'close' ? 'is-loading' : ''}`}
+                        onClick={() => runDrawAction(draw.id, 'close', onCloseDraw)}
+                        disabled={Boolean(busyDrawAction)}
+                        aria-busy={busyDrawAction?.drawId === draw.id && busyDrawAction?.action === 'close'}
+                      >
+                        {busyDrawAction?.drawId === draw.id && busyDrawAction?.action === 'close' ? (
+                          <>
+                            <span className="btn-spinner" aria-hidden="true" />
+                            Closing...
+                          </>
+                        ) : (
+                          'Close Draw'
+                        )}
                       </button>
-                      <button type="button" className="btn btn-soft" onClick={() => onDeleteDraw(draw.id)}>
-                        Delete
+                      <button
+                        type="button"
+                        className={`btn btn-soft ${busyDrawAction?.drawId === draw.id && busyDrawAction?.action === 'delete' ? 'is-loading' : ''}`}
+                        onClick={() => runDrawAction(draw.id, 'delete', onDeleteDraw)}
+                        disabled={Boolean(busyDrawAction)}
+                        aria-busy={busyDrawAction?.drawId === draw.id && busyDrawAction?.action === 'delete'}
+                      >
+                        {busyDrawAction?.drawId === draw.id && busyDrawAction?.action === 'delete' ? (
+                          <>
+                            <span className="btn-spinner" aria-hidden="true" />
+                            Deleting...
+                          </>
+                        ) : (
+                          'Delete'
+                        )}
                       </button>
                     </div>
                   </td>
@@ -257,13 +298,46 @@ function AdminDashboard({
             </div>
             <div className="row">
               <button type="button" className="btn btn-primary" onClick={handleSaveDraw} disabled={isSavingDraw}>
-                {isSavingDraw ? 'Saving changes...' : 'Save Draw Changes'}
+                {isSavingDraw ? (
+                  <>
+                    <span className="btn-spinner" aria-hidden="true" />
+                    Saving changes...
+                  </>
+                ) : (
+                  'Save Draw Changes'
+                )}
               </button>
-              <button type="button" className="btn btn-soft" onClick={() => onCloseDraw(selectedDraw.id)}>
-                Close Draw
+              <button
+                type="button"
+                className={`btn btn-soft ${busyDrawAction?.drawId === selectedDraw.id && busyDrawAction?.action === 'close' ? 'is-loading' : ''}`}
+                onClick={() => runDrawAction(selectedDraw.id, 'close', onCloseDraw)}
+                disabled={Boolean(busyDrawAction)}
+                aria-busy={busyDrawAction?.drawId === selectedDraw.id && busyDrawAction?.action === 'close'}
+              >
+                {busyDrawAction?.drawId === selectedDraw.id && busyDrawAction?.action === 'close' ? (
+                  <>
+                    <span className="btn-spinner" aria-hidden="true" />
+                    Closing...
+                  </>
+                ) : (
+                  'Close Draw'
+                )}
               </button>
-              <button type="button" className="btn btn-soft" onClick={() => onDeleteDraw(selectedDraw.id)}>
-                Delete Draw
+              <button
+                type="button"
+                className={`btn btn-soft ${busyDrawAction?.drawId === selectedDraw.id && busyDrawAction?.action === 'delete' ? 'is-loading' : ''}`}
+                onClick={() => runDrawAction(selectedDraw.id, 'delete', onDeleteDraw)}
+                disabled={Boolean(busyDrawAction)}
+                aria-busy={busyDrawAction?.drawId === selectedDraw.id && busyDrawAction?.action === 'delete'}
+              >
+                {busyDrawAction?.drawId === selectedDraw.id && busyDrawAction?.action === 'delete' ? (
+                  <>
+                    <span className="btn-spinner" aria-hidden="true" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete Draw'
+                )}
               </button>
             </div>
           </section>

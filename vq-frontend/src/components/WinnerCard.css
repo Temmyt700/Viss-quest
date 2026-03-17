@@ -3,6 +3,73 @@
   gap: 0.8rem;
 }
 
+.winner-card-list {
+  grid-template-columns: 140px minmax(0, 1fr);
+  align-items: center;
+  width: 100%;
+}
+
+.winner-card-button {
+  text-align: left;
+  border: 1px solid #e4f3e5;
+  background: #fff;
+}
+
+.winner-card-homepage {
+  position: relative;
+  overflow: hidden;
+  grid-template-columns: 102px minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.72rem 0.85rem 0.72rem 0.92rem;
+  background:
+    radial-gradient(circle at top left, rgba(135, 224, 207, 0.42), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(124, 199, 184, 0.24), transparent 38%),
+    linear-gradient(135deg, rgba(228, 249, 244, 0.98), rgba(212, 241, 234, 0.98) 48%, rgba(236, 252, 247, 0.98));
+  border-color: #94cfc0;
+  box-shadow: 0 14px 28px rgba(15, 95, 82, 0.14);
+}
+
+.winner-card-homepage::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 10px;
+  background: linear-gradient(180deg, #1d7b72, #59b7a6);
+}
+
+.winner-card-homepage .winner-image {
+  width: 100%;
+  max-width: 112px;
+  aspect-ratio: 1 / 1;
+  object-position: center 32%;
+  border-radius: 14px;
+}
+
+.winner-card-homepage .winner-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.winner-card-homepage .winner-copy {
+  gap: 0.4rem;
+}
+
+.winner-card-homepage h3 {
+  font-size: 1.1rem;
+  color: #0f5f57;
+}
+
+.winner-card-homepage .eyebrow {
+  color: #1a7467;
+  font-size: 0.7rem;
+}
+
+.winner-card-homepage .winner-meta-label {
+  color: #46716a;
+  font-size: 0.68rem;
+}
+
 .winner-image {
   width: 100%;
   aspect-ratio: 16/10;
@@ -10,3 +77,51 @@
   border-radius: 12px;
 }
 
+.winner-card-list .winner-image {
+  width: 140px;
+  aspect-ratio: 4/3;
+}
+
+.winner-copy {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.winner-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.winner-meta-label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 0.2rem;
+}
+
+@media (max-width: 720px) {
+  .winner-card-homepage {
+    grid-template-columns: 88px minmax(0, 1fr);
+    padding: 0.64rem 0.72rem 0.64rem 0.82rem;
+    gap: 0.48rem;
+  }
+
+  .winner-card-homepage .winner-image {
+    max-width: 94px;
+  }
+
+  .winner-card-list {
+    grid-template-columns: 1fr;
+  }
+
+  .winner-card-list .winner-image {
+    width: 100%;
+  }
+
+  .winner-metrics {
+    grid-template-columns: 1fr;
+  }
+}

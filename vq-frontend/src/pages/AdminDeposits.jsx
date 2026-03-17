@@ -1,6 +1,23 @@
+import { useState } from 'react'
 import './AdminDeposits.css'
 
 function AdminDeposits({ deposits, onApprove, onReject }) {
+  const [busyDepositId, setBusyDepositId] = useState(null)
+  const [busyAction, setBusyAction] = useState('')
+
+  const runDepositAction = async (depositId, action, handler) => {
+    if (busyDepositId) return
+
+    setBusyDepositId(depositId)
+    setBusyAction(action)
+    try {
+      await handler(depositId)
+    } finally {
+      setBusyDepositId(null)
+      setBusyAction('')
+    }
+  }
+
   return (
     <section className="stack-lg">
       <header className="card">
@@ -23,19 +40,35 @@ function AdminDeposits({ deposits, onApprove, onReject }) {
             <div className="row">
               <button
                 type="button"
-                className="btn btn-primary"
-                onClick={() => onApprove(deposit.id)}
-                disabled={deposit.status !== 'Pending'}
+                className={`btn btn-primary ${busyDepositId === deposit.id && busyAction === 'approve' ? 'is-loading' : ''}`}
+                onClick={() => runDepositAction(deposit.id, 'approve', onApprove)}
+                disabled={deposit.status !== 'Pending' || busyDepositId === deposit.id}
+                aria-busy={busyDepositId === deposit.id && busyAction === 'approve'}
               >
-                Approve
+                {busyDepositId === deposit.id && busyAction === 'approve' ? (
+                  <>
+                    <span className="btn-spinner" aria-hidden="true" />
+                    Approving...
+                  </>
+                ) : (
+                  'Approve'
+                )}
               </button>
               <button
                 type="button"
-                className="btn btn-soft"
-                onClick={() => onReject(deposit.id)}
-                disabled={deposit.status !== 'Pending'}
+                className={`btn btn-soft ${busyDepositId === deposit.id && busyAction === 'reject' ? 'is-loading' : ''}`}
+                onClick={() => runDepositAction(deposit.id, 'reject', onReject)}
+                disabled={deposit.status !== 'Pending' || busyDepositId === deposit.id}
+                aria-busy={busyDepositId === deposit.id && busyAction === 'reject'}
               >
-                Reject
+                {busyDepositId === deposit.id && busyAction === 'reject' ? (
+                  <>
+                    <span className="btn-spinner" aria-hidden="true" />
+                    Rejecting...
+                  </>
+                ) : (
+                  'Reject'
+                )}
               </button>
             </div>
           </article>

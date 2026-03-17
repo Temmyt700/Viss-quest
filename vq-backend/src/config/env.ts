@@ -19,6 +19,7 @@ const envSchema = z.object({
   CLOUDINARY_API_KEY: z.string().min(1),
   CLOUDINARY_API_SECRET: z.string().min(1),
   FRONTEND_URL: z.string().url(),
+  WINNER_ANNOUNCEMENT_DELAY_MINUTES: z.coerce.number().int().min(5).max(15).default(10),
 });
 
 export const env = envSchema.parse(process.env);

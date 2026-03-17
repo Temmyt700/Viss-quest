@@ -18,5 +18,8 @@ router.patch("/users/:id/role", validate(updateUserRoleSchema), asyncHandler(adm
 router.post("/wallet-adjustments", validate(walletAdjustmentSchema), asyncHandler(adminController.adjustWallet));
 router.get("/wallet-stats", asyncHandler(adminController.walletStats));
 router.get("/referrals", asyncHandler(adminController.referralInsights));
+router.get("/draw-winners/pending", asyncHandler(adminController.pendingDrawWinners));
+router.post("/draw-winners/:id/announce", asyncHandler(adminController.announcePendingWinner));
+router.post("/draw-winners/:id/rerun", asyncHandler(adminController.rerunPendingWinner));
 
 export { router as adminRoutes };

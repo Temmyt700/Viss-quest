@@ -3,6 +3,8 @@ import AdminTable from '../components/AdminTable'
 
 function AdminUserDetail({ user, history, isLoading, errorMessage, onBanToggle, onRoleChange, onAdjustWallet }) {
   const [adjustment, setAdjustment] = useState({ amount: '', reason: '' })
+  const [isAdjustingWallet, setIsAdjustingWallet] = useState(false)
+  const [isUpdatingUser, setIsUpdatingUser] = useState(false)
 
   if (isLoading) {
     return (
@@ -52,11 +54,42 @@ function AdminUserDetail({ user, history, isLoading, errorMessage, onBanToggle, 
         </section>
       </div>
       <div className="row">
-        <button type="button" className="btn btn-soft" onClick={() => onBanToggle(user.id)}>
-          {user.accountStatus === 'Suspended' ? 'Unban User' : 'Ban User'}
+        <button
+          type="button"
+          className={`btn btn-soft ${isUpdatingUser ? 'is-loading' : ''}`}
+          onClick={async () => {
+            setIsUpdatingUser(true)
+            try {
+              await onBanToggle(user.id)
+            } finally {
+              setIsUpdatingUser(false)
+            }
+          }}
+          disabled={isUpdatingUser}
+          aria-busy={isUpdatingUser}
+        >
+          {isUpdatingUser ? (
+            <>
+              <span className="btn-spinner" aria-hidden="true" />
+              Updating user...
+            </>
+          ) : (
+            user.accountStatus === 'Suspended' ? 'Unban User' : 'Ban User'
+          )}
         </button>
         {/* Keep role changes aligned with the simplified admin-only access model. */}
-        <select value={user.role} onChange={(event) => onRoleChange(user.id, event.target.value)}>
+        <select
+          value={user.role}
+          disabled={isUpdatingUser}
+          onChange={async (event) => {
+            setIsUpdatingUser(true)
+            try {
+              await onRoleChange(user.id, event.target.value)
+            } finally {
+              setIsUpdatingUser(false)
+            }
+          }}
+        >
           <option value="user">User</option>
           <option value="admin">Admin</option>
         </select>
@@ -85,14 +118,27 @@ function AdminUserDetail({ user, history, isLoading, errorMessage, onBanToggle, 
         </div>
         <button
           type="button"
-          className="btn btn-primary"
+          className={`btn btn-primary ${isAdjustingWallet ? 'is-loading' : ''}`}
           onClick={async () => {
-            await onAdjustWallet(user.id, Number(adjustment.amount), adjustment.reason)
-            setAdjustment({ amount: '', reason: '' })
+            setIsAdjustingWallet(true)
+            try {
+              await onAdjustWallet(user.id, Number(adjustment.amount), adjustment.reason)
+              setAdjustment({ amount: '', reason: '' })
+            } finally {
+              setIsAdjustingWallet(false)
+            }
           }}
-          disabled={!adjustment.amount || !adjustment.reason}
+          disabled={!adjustment.amount || !adjustment.reason || isAdjustingWallet}
+          aria-busy={isAdjustingWallet}
         >
-          Save Wallet Adjustment
+          {isAdjustingWallet ? (
+            <>
+              <span className="btn-spinner" aria-hidden="true" />
+              Saving wallet adjustment...
+            </>
+          ) : (
+            'Save Wallet Adjustment'
+          )}
         </button>
       </section>
       <AdminTable

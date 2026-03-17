@@ -4,6 +4,7 @@ import { auth } from "../../config/auth.js";
 import { db } from "../../db/client.js";
 import { users, wallets } from "../../db/schema/index.js";
 import { generateReferenceId } from "../../utils/referenceId.js";
+import { isDatabaseConnectivityError } from "../../utils/databaseConnectivity.js";
 import { referralsService } from "../referrals/referrals.service.js";
 
 type RegisterInput = {
@@ -33,14 +34,23 @@ const applyReturnedHeaders = (res: Response, headers?: Headers) => {
 
 export const authService = {
   async register(input: RegisterInput, res: Response) {
-    const result = await auth.api.signUpEmail({
-      body: {
-        name: input.fullName,
-        email: input.email,
-        password: input.password,
-      },
-      returnHeaders: true,
-    });
+    let result;
+    try {
+      result = await auth.api.signUpEmail({
+        body: {
+          name: input.fullName,
+          email: input.email,
+          password: input.password,
+        },
+        returnHeaders: true,
+      });
+    } catch (error) {
+      if (isDatabaseConnectivityError(error)) {
+        throw new Error("Service is temporarily unavailable right now. Please try again in a moment.");
+      }
+
+      throw error;
+    }
 
     applyReturnedHeaders(res, result.headers);
 
@@ -68,10 +78,19 @@ export const authService = {
   },
 
   async login(input: LoginInput, res: Response) {
-    const result = await auth.api.signInEmail({
-      body: input,
-      returnHeaders: true,
-    });
+    let result;
+    try {
+      result = await auth.api.signInEmail({
+        body: input,
+        returnHeaders: true,
+      });
+    } catch (error) {
+      if (isDatabaseConnectivityError(error)) {
+        throw new Error("Service is temporarily unavailable right now. Please try again in a moment.");
+      }
+
+      throw error;
+    }
 
     applyReturnedHeaders(res, result.headers);
     return result.response;

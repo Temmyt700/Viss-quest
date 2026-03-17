@@ -12,7 +12,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "npm run build && drizzle-kit push",
     "db:seed": "tsx src/db/seed.ts",
-    "admin:promote": "tsx src/scripts/promote-admin.ts"
+    "admin:promote": "tsx src/scripts/promote-admin.ts",
+    "spins:reset-today": "tsx src/scripts/reset-spins.ts"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.5.0",

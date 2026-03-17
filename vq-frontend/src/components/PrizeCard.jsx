@@ -4,7 +4,7 @@ import { getDrawStatusLabel, isDrawEntryOpen } from '../utils/draws'
 import './PrizeCard.css'
 
 function PrizeCard({ draw, serverNow, onViewDraw, onEnterDraw }) {
-  const isOpen = isDrawEntryOpen(draw.status)
+  const isOpen = isDrawEntryOpen(draw.status) && !draw.hasEntered
 
   return (
     <article
@@ -44,7 +44,7 @@ function PrizeCard({ draw, serverNow, onViewDraw, onEnterDraw }) {
           }}
           disabled={!isOpen}
         >
-          {isOpen ? 'Enter Draw' : 'Entries Closed'}
+          {draw.hasEntered ? 'Already Entered' : isOpen ? 'Enter Draw' : 'Entries Closed'}
         </button>
       </div>
     </article>

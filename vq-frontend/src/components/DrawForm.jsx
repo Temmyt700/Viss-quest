@@ -17,6 +17,29 @@ const emptyFormState = {
   endTime: '',
 }
 
+const validateImageUrl = (imageUrl) =>
+  new Promise((resolve, reject) => {
+    if (!imageUrl) {
+      resolve()
+      return
+    }
+
+    const image = new window.Image()
+    const timer = window.setTimeout(() => {
+      reject(new Error('We could not load that image URL. Please use a direct image link or upload the image.'))
+    }, 5000)
+
+    image.onload = () => {
+      window.clearTimeout(timer)
+      resolve()
+    }
+    image.onerror = () => {
+      window.clearTimeout(timer)
+      reject(new Error('We could not load that image URL. Please use a direct image link or upload the image.'))
+    }
+    image.src = imageUrl
+  })
+
 function DrawForm({ index, existingDraw, onConfirmSlot }) {
   const [formState, setFormState] = useState(emptyFormState)
   const [slotState, setSlotState] = useState('saved as draft')
@@ -64,6 +87,14 @@ function DrawForm({ index, existingDraw, onConfirmSlot }) {
     setSlotError('')
 
     try {
+      const galleryImageUrls = formState.galleryImageUrls
+        ? formState.galleryImageUrls.split('\n').map((value) => value.trim()).filter(Boolean).slice(0, 2)
+        : []
+      await Promise.all([
+        validateImageUrl(formState.imageUrl),
+        ...galleryImageUrls.map((imageUrl) => validateImageUrl(imageUrl)),
+      ])
+
       const response = await onConfirmSlot(index + 1, formState)
       if (!response) {
         setSlotState('saved as draft')
@@ -197,7 +228,7 @@ function DrawForm({ index, existingDraw, onConfirmSlot }) {
           </select>
         </label>
         {formState.goLiveMode === 'schedule' ? (
-          <label>
+          <label className="date-time-field">
             Start Time
             <input
               type="datetime-local"
@@ -206,7 +237,7 @@ function DrawForm({ index, existingDraw, onConfirmSlot }) {
             />
           </label>
         ) : null}
-        <label>
+        <label className="date-time-field">
           End Time
           <input
             type="datetime-local"
@@ -218,11 +249,19 @@ function DrawForm({ index, existingDraw, onConfirmSlot }) {
       {slotError ? <p className="form-error">{slotError}</p> : null}
       <button
         type="button"
-        className="btn btn-primary"
+        className={`btn btn-primary ${isSaving ? 'is-loading' : ''}`}
         onClick={handleConfirm}
         disabled={isSaving || isOccupied}
+        aria-busy={isSaving}
       >
-        {isSaving ? 'Saving draw...' : `Confirm Draw Slot ${index + 1}`}
+        {isSaving ? (
+          <>
+            <span className="btn-spinner" aria-hidden="true" />
+            Saving draw...
+          </>
+        ) : (
+          `Confirm Draw Slot ${index + 1}`
+        )}
       </button>
       <div className="draw-slot-history">
         <strong>Draw Slot {index + 1}</strong> {slotState}

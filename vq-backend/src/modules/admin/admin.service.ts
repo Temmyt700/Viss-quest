@@ -13,6 +13,7 @@ import {
   winners,
 } from "../../db/schema/index.js";
 import { toNumber } from "../../utils/money.js";
+import { winnersService } from "../winners/winners.service.js";
 
 export const adminService = {
   async getOverview() {
@@ -192,5 +193,33 @@ export const adminService = {
         totalReferralsByReferrer: totalsByReferrer.get(row.referrerUserId) ?? 0,
       })),
     };
+  },
+
+  async getPendingDrawWinners() {
+    return winnersService.listPending();
+  },
+
+  async announcePendingWinner(drawId: string, actorUserId: string) {
+    const result = await winnersService.announceWinner(drawId);
+    await db.insert(adminLogs).values({
+      actorUserId,
+      action: "draw.winner.announced",
+      targetType: "draw",
+      targetId: drawId,
+      metadata: { override: true },
+    });
+    return result;
+  },
+
+  async rerunPendingWinner(drawId: string, actorUserId: string) {
+    const winner = await winnersService.rerunSelection(drawId);
+    await db.insert(adminLogs).values({
+      actorUserId,
+      action: "draw.winner.rerun",
+      targetType: "draw",
+      targetId: drawId,
+      metadata: { override: true },
+    });
+    return { winner };
   },
 };

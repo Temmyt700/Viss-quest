@@ -10,6 +10,7 @@ const adminLinks = [
   { path: '/admin/notifications', label: 'Notifications' },
   { path: '/admin/banks', label: 'Banks' },
   { path: '/admin/winners', label: 'Winners' },
+  { path: '/admin/testimonials', label: 'Testimonials' },
   { path: '/admin/quiz', label: 'Daily Quiz' },
   { path: '/admin/users', label: 'Users' },
 ]

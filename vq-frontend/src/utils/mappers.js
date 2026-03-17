@@ -43,10 +43,7 @@ export function flattenDraws(draws = []) {
       status: prize.urgencyStatus || 'available',
       manualStatus: prize.manualStatusOverride || '',
       images: (prize.images || []).map((image) => image.imageUrl || image),
-      image:
-        prize.images?.[0]?.imageUrl ||
-        prize.imageUrl ||
-        'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=900&q=80',
+      image: prize.images?.[0]?.imageUrl || prize.imageUrl || '',
       startTime: prize.startTime || draw.startTime,
       endTime: prize.endTime || draw.endTime,
       createdAt: prize.createdAt || draw.createdAt,
@@ -81,13 +78,15 @@ export function mapTransactions(items = []) {
 export function mapWinners(items = []) {
   return items.map((item) => ({
     id: item.id,
+    drawId: item.drawId,
     userId: item.userId,
     referenceId: item.referenceId,
     date: formatDisplayDay(item.announcedAt, item.date),
     prizeTitle: item.prizeTitle,
-    image:
-      item.imageUrl ||
-      'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=900&q=80',
+    slotNumber: item.slotNumber || null,
+    status: item.announcedAt ? 'winner_announced' : 'winner_pending',
+    suspenseMessage: item.suspenseMessage || null,
+    image: item.imageUrl || '',
   }))
 }
 
@@ -97,7 +96,9 @@ export function mapTestimonials(items = []) {
     userId: item.userId,
     referenceId: item.referenceId,
     prizeTitle: item.prizeTitle,
+    rawWinningDate: item.winningDate,
     winningDate: formatDisplayDay(item.winningDate, item.winningDate),
+    createdAt: item.createdAt,
     message: item.message,
     images: (item.images || []).map((image) => image.imageUrl || image),
   }))
@@ -130,7 +131,9 @@ export function mapSpinSettings(config) {
     dailySpinLimit: Number(config.dailySpinLimit || 1),
     rewards: (config.rewards || []).map((reward) => ({
       id: reward.id,
+      rewardType: reward.rewardType || reward.type,
       type: reward.rewardType || reward.type,
+      rewardAmount: Number(reward.rewardAmount || reward.amount || 0),
       amount: Number(reward.rewardAmount || reward.amount || 0),
       label: reward.label,
       maxDailyWinners: reward.maxDailyWinners,

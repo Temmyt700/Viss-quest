@@ -10,15 +10,20 @@ function InstallPromptModal({ isOpen, onClose, onInstall, canInstall }) {
         <h3>Add VissQuest to your phone</h3>
         <div className="stack">
           {canInstall ? (
-            <p className="muted">You can install VissQuest now for faster access and app-like navigation.</p>
+            <p className="muted">Your browser can install VissQuest directly now. Tap Install Now for the fastest path, or follow the steps below if your browser does not show the native prompt.</p>
           ) : null}
           <div className="stack">
             <strong>Android</strong>
-            <p className="muted">Open the browser menu, tap Add to Home screen or Install app, then confirm.</p>
+            <p className="muted">If you do not receive the automatic installation prompt on Android, click the install button.</p>
           </div>
           <div className="stack">
             <strong>iPhone Safari</strong>
-            <p className="muted">Tap the Share icon, choose Add to Home Screen, then tap Add.</p>
+            <ol className="install-steps muted">
+              <li>Open the site in Safari.</li>
+              <li>Tap the Share button.</li>
+              <li>Scroll down.</li>
+              <li>Tap Add to Home Screen.</li>
+            </ol>
           </div>
         </div>
         <div className="row">

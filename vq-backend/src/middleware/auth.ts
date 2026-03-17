@@ -12,7 +12,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       headers: req.headers as HeadersInit,
     });
   } catch (error) {
-    res.status(503).json({ message: "Unable to verify your session right now. Please try again." });
+    res.status(503).json({ message: "Service is temporarily unavailable right now. Please try again." });
     return;
   }
 
@@ -28,7 +28,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     [user] = await db.select().from(users).where(eq(users.id, session.user.id)).limit(1);
   } catch (error) {
     if (isDatabaseConnectivityError(error)) {
-      res.status(503).json({ message: "We could not reach the database right now. Please try again shortly." });
+      res.status(503).json({ message: "Service is temporarily unavailable right now. Please try again." });
       return;
     }
 

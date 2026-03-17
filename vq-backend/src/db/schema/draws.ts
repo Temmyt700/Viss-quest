@@ -76,10 +76,14 @@ export const winners = pgTable("winners", {
   drawPrizeId: uuid("draw_prize_id").notNull().references(() => drawPrizes.id, { onDelete: "cascade" }),
   userId: text("user_id").notNull(),
   referenceId: text("reference_id").notNull(),
+  entryId: uuid("entry_id").references(() => drawEntries.id, { onDelete: "set null" }),
   prizeTitle: text("prize_title").notNull(),
-  announcedAt: timestamp("announced_at", { withTimezone: true }).notNull().defaultNow(),
+  selectedAt: timestamp("selected_at", { withTimezone: true }).notNull().defaultNow(),
+  announcedAt: timestamp("announced_at", { withTimezone: true }),
 }, (table) => ({
   userIdIdx: index("winners_user_id_idx").on(table.userId),
   drawPrizeIdIdx: index("winners_draw_prize_id_idx").on(table.drawPrizeId),
+  entryIdIdx: index("winners_entry_id_idx").on(table.entryId),
+  selectedAtIdx: index("winners_selected_at_idx").on(table.selectedAt),
   announcedAtIdx: index("winners_announced_at_idx").on(table.announcedAt),
 }));

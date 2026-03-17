@@ -27,6 +27,7 @@ import AdminSpinSettings from './pages/AdminSpinSettings'
 import AdminUsers from './pages/AdminUsers'
 import AdminUserDetail from './pages/AdminUserDetail'
 import AdminNotifications from './pages/AdminNotifications'
+import AdminTestimonials from './pages/AdminTestimonials'
 import LegalPage from './pages/LegalPage'
 import { apiRequest } from './utils/api'
 import { SUPPORT_CONTACT } from './utils/constants'
@@ -50,6 +51,7 @@ const emptyDashboard = {
   participations: 0,
   wins: 0,
   recentEntries: [],
+  enteredDrawPrizeIds: [],
   latestNotifications: [],
   winnerNotice: null,
   referralSummary: null,
@@ -66,6 +68,11 @@ const emptyWalletStats = {
 
 const emptySpinState = {
   hasSpunToday: false,
+  canSpin: true,
+  dailySpinLimit: 1,
+  paidSpinsUsed: 0,
+  availableFreeSpins: 0,
+  remainingTotalSpins: 1,
   isSpinning: false,
   isPriming: false,
   rotation: 0,
@@ -118,15 +125,47 @@ const normalizeQuizRow = (quiz) => ({
   activeWindow: '24 hours',
 })
 
+const mapManagedDrawForHome = (draw) => ({
+  id: draw.id,
+  drawId: draw.drawId,
+  drawPrizeId: draw.id,
+  slotNumber: draw.slotNumber,
+  title: draw.title,
+  description: draw.description || '',
+  image: draw.image || draw.imageUrl || draw.images?.[0] || '',
+  coverImage: draw.image || draw.imageUrl || draw.images?.[0] || '',
+  images: draw.images || [],
+  entryFee: Number(draw.entryFee || 0),
+  prizeValue: Number(draw.prizeValue || 0),
+  status: draw.status,
+  currentEntries: draw.currentEntries || 0,
+  maxEntries: draw.maxEntries || 0,
+  startTime: draw.startTime,
+  endTime: draw.endTime,
+  drawRef: draw.drawRef,
+  drawDay: draw.drawDay,
+  goLiveMode: draw.goLiveMode,
+  hasEntered: Boolean(draw.hasEntered),
+})
+
 function App() {
   const spinTimeoutRef = useRef(null)
+  const spinIntervalRef = useRef(null)
+  const spinRotationRef = useRef(0)
+  const installPromptTimerRef = useRef(null)
+  const hasLoadedInitialHomeRef = useRef(false)
+  const publicDataRequestRef = useRef(null)
+  const sessionRefreshPromiseRef = useRef(null)
+  const focusRefreshRef = useRef({ lastRunAt: 0 })
   const [path, setPath] = useState(window.location.pathname || '/')
   const [serverNow, setServerNow] = useState(Date.now())
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [authUser, setAuthUser] = useState(null)
   const [appFeedback, setAppFeedback] = useState(null)
+  const [serviceDegradedMessage, setServiceDegradedMessage] = useState('')
   const [isHomeLoading, setIsHomeLoading] = useState(true)
   const [isDashboardLoading, setIsDashboardLoading] = useState(false)
   const [isDailyChancesLoading, setIsDailyChancesLoading] = useState(false)
@@ -135,6 +174,8 @@ function App() {
   const [winners, setWinners] = useState([])
   const [testimonials, setTestimonials] = useState([])
   const [banks, setBanks] = useState([])
+  const [isBanksLoading, setIsBanksLoading] = useState(false)
+  const [banksError, setBanksError] = useState('')
   const [dashboardData, setDashboardData] = useState(emptyDashboard)
   const [transactions, setTransactions] = useState([])
   const [notifications, setNotifications] = useState([])
@@ -145,8 +186,11 @@ function App() {
   const [entryDraw, setEntryDraw] = useState(null)
   const [selectedDrawDetails, setSelectedDrawDetails] = useState(null)
   const [entryCelebration, setEntryCelebration] = useState(null)
+  const [winnerCelebration, setWinnerCelebration] = useState(null)
+  const [testimonialViewer, setTestimonialViewer] = useState(null)
   const [isInfoOpen, setIsInfoOpen] = useState(false)
   const [isInstallOpen, setIsInstallOpen] = useState(false)
+  const [isAppInstalled, setIsAppInstalled] = useState(false)
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState(null)
   const [spinSettings, setSpinSettings] = useState({
     spinCost: 15,
@@ -176,6 +220,7 @@ function App() {
   const [adminUserDetailError, setAdminUserDetailError] = useState('')
   const [walletStats, setWalletStats] = useState(emptyWalletStats)
   const [scheduledQuizzes, setScheduledQuizzes] = useState([])
+  const [pendingDrawWinners, setPendingDrawWinners] = useState([])
   const [notificationSettings, setNotificationSettings] = useState({
     fundingApproved: true,
     prizeWon: true,
@@ -195,8 +240,18 @@ function App() {
       if (spinTimeoutRef.current) {
         window.clearTimeout(spinTimeoutRef.current)
       }
+      if (spinIntervalRef.current) {
+        window.clearInterval(spinIntervalRef.current)
+      }
+      if (installPromptTimerRef.current) {
+        window.clearTimeout(installPromptTimerRef.current)
+      }
     }
   }, [])
+
+  useEffect(() => {
+    spinRotationRef.current = spinState.rotation
+  }, [spinState.rotation])
 
   useEffect(() => {
     const hasSeenInfo = window.localStorage.getItem('vq-info-seen')
@@ -206,26 +261,85 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (!dashboardData.winnerNotice?.winnerId) return
+
+    const celebrationKey = `vq-winner-celebrated-${dashboardData.winnerNotice.winnerId}`
+    if (window.localStorage.getItem(celebrationKey)) {
+      return
+    }
+
+    // Winner celebrations fire once per browser storage state so actual
+    // winners get a strong first-login moment without being interrupted on
+    // every navigation afterwards.
+    window.localStorage.setItem(celebrationKey, 'true')
+    setWinnerCelebration({
+      title: dashboardData.winnerNotice.prizeTitle,
+      referenceId: dashboardData.winnerNotice.referenceId,
+      slotNumber: dashboardData.winnerNotice.slotNumber,
+    })
+  }, [dashboardData.winnerNotice])
+
+  useEffect(() => {
+    const detectInstalled = () => {
+      const installed =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true
+      setIsAppInstalled(installed)
+    }
+
+    detectInstalled()
+    const media = window.matchMedia('(display-mode: standalone)')
     const onBeforeInstallPrompt = (event) => {
       event.preventDefault()
       setDeferredInstallPrompt(event)
     }
 
-    const firstVisitAt = window.localStorage.getItem('vq-first-visit-at')
-    if (!firstVisitAt) {
-      window.localStorage.setItem('vq-first-visit-at', String(Date.now()))
+    const onInstalled = () => {
+      setIsAppInstalled(true)
+      setDeferredInstallPrompt(null)
+      setIsInstallOpen(false)
     }
-
-    const timer = window.setTimeout(() => {
-      setIsInstallOpen(true)
-    }, 30_000)
 
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt)
+    window.addEventListener('appinstalled', onInstalled)
+    media.addEventListener?.('change', detectInstalled)
     return () => {
-      window.clearTimeout(timer)
       window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt)
+      window.removeEventListener('appinstalled', onInstalled)
+      media.removeEventListener?.('change', detectInstalled)
     }
   }, [])
+
+  const markInstallPromptSeen = useCallback(() => {
+    window.localStorage.setItem('vq-install-prompt-dismissed', 'true')
+  }, [])
+
+  useEffect(() => {
+    if (isAppInstalled) {
+      return
+    }
+
+    const dismissed = window.localStorage.getItem('vq-install-prompt-dismissed') === 'true'
+
+    if (dismissed || installPromptTimerRef.current) {
+      return
+    }
+
+    // The install helper is stored locally only. Once dismissed, it stays
+    // hidden until browser storage is cleared on that device.
+    installPromptTimerRef.current = window.setTimeout(() => {
+      markInstallPromptSeen()
+      setIsInstallOpen(true)
+      installPromptTimerRef.current = null
+    }, 30_000)
+
+    return () => {
+      if (installPromptTimerRef.current) {
+        window.clearTimeout(installPromptTimerRef.current)
+        installPromptTimerRef.current = null
+      }
+    }
+  }, [isAppInstalled, markInstallPromptSeen])
 
   const navigate = (nextPath) => {
     if (nextPath === path) return
@@ -234,6 +348,16 @@ function App() {
     setIsNotificationsOpen(false)
     setAppFeedback(null)
   }
+
+  const isTemporaryServiceMessage = useCallback(
+    (message) => typeof message === 'string' && /service is temporarily unavailable/i.test(message),
+    [],
+  )
+
+  const noteServiceDegraded = useCallback((message) => {
+    if (!message || !isTemporaryServiceMessage(message)) return
+    setServiceDegradedMessage(message)
+  }, [isTemporaryServiceMessage])
 
   const openInfoModal = () => {
     setIsInfoOpen(true)
@@ -249,43 +373,105 @@ function App() {
 
     await deferredInstallPrompt.prompt()
     await deferredInstallPrompt.userChoice.catch(() => {})
+    markInstallPromptSeen()
     setDeferredInstallPrompt(null)
     setIsInstallOpen(false)
   }
 
   const showAppError = useCallback((error, fallbackMessage = 'Something went wrong. Please try again.') => {
     const message = error instanceof Error ? error.message : fallbackMessage
+    noteServiceDegraded(message)
     setAppFeedback({
       type: 'error',
       message,
     })
-  }, [])
+  }, [noteServiceDegraded]) 
 
   const applyHomeSnapshot = useCallback((payload) => {
     const heroDraws = payload?.critical?.heroDraws || []
     setDraws(
       heroDraws.map((draw) => ({
         ...draw,
-        drawRef: draw.drawId,
+        drawRef: draw.drawRef,
         image: draw.coverImage,
         status: draw.status,
       })),
     )
     setServerNow(payload?.serverNow ? new Date(payload.serverNow).getTime() : Date.now())
-    if ((payload?.secondary?.winnersPreview || []).length) {
-      setWinners(mapWinners(payload.secondary.winnersPreview))
+    const latestWinners = payload?.critical?.latestWinners || payload?.secondary?.winnersPreview || []
+    if (latestWinners.length) {
+      setWinners(mapWinners(latestWinners))
     }
   }, [])
 
-  const loadPublicData = useCallback(async () => {
-    setIsHomeLoading(true)
-    try {
-      const payload = await apiRequest('/api/app/home')
-      applyHomeSnapshot(payload)
-    } finally {
-      setIsHomeLoading(false)
+  const syncManagedDrawLocally = useCallback((drawPayload) => {
+    // Mutations update the draw lists immediately so create/update/delete
+    // actions do not depend on a later navigation or stale cached response.
+    const [nextManagedDraw] = flattenDraws([drawPayload])
+    if (!nextManagedDraw) {
+      throw new Error('The draw was saved but no draw payload was returned.')
     }
-  }, [applyHomeSnapshot])
+
+    setAdminDraws((prev) => {
+      const otherDraws = prev.filter((item) => item.id !== nextManagedDraw.id && item.slotNumber !== nextManagedDraw.slotNumber)
+      return [...otherDraws, nextManagedDraw].sort((left, right) => {
+        if (left.slotNumber !== right.slotNumber) return left.slotNumber - right.slotNumber
+        return new Date(right.createdAt || 0).getTime() - new Date(left.createdAt || 0).getTime()
+      })
+    })
+
+    setDraws((prev) => {
+      const nextPublicDraw = mapManagedDrawForHome(nextManagedDraw)
+      const isEligibleForHome =
+        Boolean(nextPublicDraw.image) &&
+        !['closed', 'deleted', 'winner_pending', 'winner_announced', 'completed'].includes(nextPublicDraw.status)
+
+      const withoutSlot = prev.filter((item) => item.slotNumber !== nextPublicDraw.slotNumber && item.id !== nextPublicDraw.id)
+      if (!isEligibleForHome) {
+        return withoutSlot
+      }
+
+      return [...withoutSlot, nextPublicDraw].sort((left, right) => left.slotNumber - right.slotNumber)
+    })
+
+    return nextManagedDraw
+  }, [])
+
+  const removeManagedDrawLocally = useCallback((drawId) => {
+    setAdminDraws((prev) => prev.filter((item) => item.id !== drawId))
+    setDraws((prev) => prev.filter((item) => item.id !== drawId))
+  }, [])
+
+  const loadPublicData = useCallback(async ({ showLoader = true } = {}) => {
+    if (publicDataRequestRef.current) {
+      return publicDataRequestRef.current
+    }
+
+    if (showLoader) {
+      setIsHomeLoading(true)
+    }
+
+    const request = (async () => {
+      try {
+        const payload = await apiRequest('/api/app/home')
+        applyHomeSnapshot(payload)
+        setServiceDegradedMessage('')
+        return payload
+      } catch (error) {
+        noteServiceDegraded(error instanceof Error ? error.message : '')
+        throw error
+      } finally {
+        hasLoadedInitialHomeRef.current = true
+        if (showLoader) {
+          setIsHomeLoading(false)
+        }
+        publicDataRequestRef.current = null
+      }
+    })()
+
+    publicDataRequestRef.current = request
+    return request
+  }, [applyHomeSnapshot, noteServiceDegraded])
 
   const clearAuthenticatedState = useCallback(() => {
     setIsAuthenticated(false)
@@ -313,6 +499,7 @@ function App() {
     setAdminUserDetailError('')
     setWalletStats(emptyWalletStats)
     setScheduledQuizzes([])
+    setPendingDrawWinners([])
     setSpinState((prev) => ({
       ...emptySpinState,
       rotation: prev.rotation,
@@ -341,6 +528,7 @@ function App() {
       participations: Number(critical.summary?.participations || 0),
       wins: Number(critical.summary?.wins || 0),
       recentEntries: secondary.recentEntries || [],
+      enteredDrawPrizeIds: critical.enteredDrawPrizeIds || [],
       latestNotifications: critical.notifications?.latest || [],
       winnerNotice: critical.winnerNotice || null,
       referralSummary: {
@@ -359,6 +547,11 @@ function App() {
     setSpinState((prev) => ({
       ...prev,
       hasSpunToday: Boolean(critical.spinStatus?.hasSpunToday),
+      canSpin: Boolean(critical.spinStatus?.canSpin),
+      dailySpinLimit: Number(critical.spinStatus?.dailySpinLimit || prev.dailySpinLimit || 1),
+      paidSpinsUsed: Number(critical.spinStatus?.paidSpinsUsed || 0),
+      availableFreeSpins: Number(critical.spinStatus?.availableFreeSpins || 0),
+      remainingTotalSpins: Number(critical.spinStatus?.remainingTotalSpins || 0),
     }))
     setQuizState(
       critical.quizStatus?.attemptedToday
@@ -473,6 +666,24 @@ function App() {
       })
     }
 
+    if (targetPath === '/admin/winners') {
+      requests.push(apiRequest('/api/admin/draw-winners/pending'))
+      applyResult.push((pendingWinnersResponse) => {
+        if (pendingWinnersResponse) {
+          setPendingDrawWinners(mapWinners(pendingWinnersResponse.pending || []))
+        }
+      })
+    }
+
+    if (targetPath === '/admin/testimonials') {
+      requests.push(apiRequest('/api/testimonials'))
+      applyResult.push((testimonialsResponse) => {
+        if (testimonialsResponse) {
+          setTestimonials(mapTestimonials(testimonialsResponse.testimonials || []))
+        }
+      })
+    }
+
     if (targetPath === '/admin/banks') {
       requests.push(apiRequest('/api/banks'))
       applyResult.push((banksResponse) => {
@@ -524,33 +735,45 @@ function App() {
       setWalletStats(emptyWalletStats)
       setScheduledQuizzes([])
     }
+    setServiceDegradedMessage('')
   }, [applyDashboardSnapshot])
 
   // Only switch the shell into the authenticated state after user-scoped
   // data is ready, so the navbar and protected routes update together.
   const refreshSession = useCallback(async ({ showLoader = true } = {}) => {
+    if (sessionRefreshPromiseRef.current) {
+      return sessionRefreshPromiseRef.current
+    }
+
     if (showLoader) {
       setIsAuthLoading(true)
     }
-    try {
-      if (showLoader) {
-        setIsDashboardLoading(true)
+    const request = (async () => {
+      try {
+        if (showLoader) {
+          setIsDashboardLoading(true)
+        }
+        await loadAuthenticatedData()
+        setAppFeedback(null)
+      } catch (error) {
+        noteServiceDegraded(error instanceof Error ? error.message : '')
+        clearAuthenticatedState()
+      } finally {
+        setIsDashboardLoading(false)
+        if (showLoader) {
+          setIsAuthLoading(false)
+        }
+        sessionRefreshPromiseRef.current = null
       }
-      await loadAuthenticatedData()
-      setAppFeedback(null)
-    } catch (_error) {
-      clearAuthenticatedState()
-    } finally {
-      setIsDashboardLoading(false)
-      if (showLoader) {
-        setIsAuthLoading(false)
-      }
-    }
-  }, [clearAuthenticatedState, loadAuthenticatedData])
+    })()
+
+    sessionRefreshPromiseRef.current = request
+    return request
+  }, [clearAuthenticatedState, loadAuthenticatedData, noteServiceDegraded])
 
   const refreshAppData = useCallback(async () => {
     await Promise.allSettled([
-      loadPublicData().catch((error) => {
+      loadPublicData({ showLoader: true }).catch((error) => {
         console.error(error)
       }),
       refreshSession({ showLoader: true }),
@@ -559,7 +782,7 @@ function App() {
 
   const refreshAfterMutation = useCallback(async ({ includeAdmin = false, includeSession = true } = {}) => {
     const tasks = [
-      loadPublicData().catch((error) => {
+      loadPublicData({ showLoader: false }).catch((error) => {
         console.error(error)
       }),
     ]
@@ -630,16 +853,24 @@ function App() {
       setSpinSettings((prev) => ({
         ...prev,
         spinCost: Number(critical.spin?.spinCost || prev.spinCost),
+        dailySpinLimit: Number(critical.spin?.dailySpinLimit || prev.dailySpinLimit || 1),
         rewards: (critical.spin?.rewards || []).map((reward) => ({
           id: reward.id,
           label: reward.label,
+          rewardType: reward.rewardType,
           type: reward.rewardType,
+          rewardAmount: Number(reward.rewardAmount || 0),
           amount: Number(reward.rewardAmount || 0),
         })),
       }))
       setSpinState((prev) => ({
         ...prev,
         hasSpunToday: Boolean(critical.spin?.hasSpunToday),
+        canSpin: Boolean(critical.spin?.canSpin),
+        dailySpinLimit: Number(critical.spin?.dailySpinLimit || prev.dailySpinLimit || 1),
+        paidSpinsUsed: Number(critical.spin?.paidSpinsUsed || 0),
+        availableFreeSpins: Number(critical.spin?.availableFreeSpins || 0),
+        remainingTotalSpins: Number(critical.spin?.remainingTotalSpins || 0),
       }))
       setQuizToday(critical.quiz || null)
       setQuizState(
@@ -663,8 +894,22 @@ function App() {
   }, [isAuthenticated])
 
   const refreshBanks = useCallback(async () => {
-    const banksResponse = await apiRequest('/api/banks')
-    setBanks(mapBanks(banksResponse.banks || banksResponse))
+    setIsBanksLoading(true)
+    setBanksError('')
+    try {
+      const banksResponse = await apiRequest('/api/banks')
+      const nextBanks = mapBanks(banksResponse.banks || banksResponse)
+      setBanks(nextBanks)
+
+      if (!nextBanks.length) {
+        setBanksError('Funding bank accounts are being updated. Please check back shortly.')
+      }
+    } catch (error) {
+      setBanksError(error instanceof Error ? error.message : 'We could not load the funding bank accounts.')
+      throw error
+    } finally {
+      setIsBanksLoading(false)
+    }
   }, [])
 
   const refreshWinnersAndTestimonials = useCallback(async () => {
@@ -683,6 +928,7 @@ function App() {
 
   useEffect(() => {
     if (path !== '/') return
+    if (!hasLoadedInitialHomeRef.current) return
 
     // Refresh public-facing draw data when the user navigates back to Home so
     // the latest published draws appear without a hard browser reload.
@@ -805,27 +1051,34 @@ function App() {
   useEffect(() => {
     const needsBanks = path === '/wallet' || path === '/admin/banks' || isFundingOpen
     if (!needsBanks) return
-    if (banks.length) return
+    if (banks.length || banksError || isBanksLoading) return
 
     void refreshBanks().catch((error) => {
       console.error(error)
     })
-  }, [banks.length, isFundingOpen, path, refreshBanks])
+  }, [banks.length, banksError, isBanksLoading, isFundingOpen, path, refreshBanks])
 
   useEffect(() => {
     const needsWinnerData = path === '/winners' || path === '/testimonials' || path === '/admin/winners'
     if (!needsWinnerData) return
-    if (winners.length && testimonials.length) return
 
+    // Winners/testimonials pages should refresh on navigation so new winner
+    // announcements and new proof uploads appear without a browser reload.
     void refreshWinnersAndTestimonials().catch((error) => {
       console.error(error)
     })
-  }, [path, refreshWinnersAndTestimonials, testimonials.length, winners.length])
+  }, [path, refreshWinnersAndTestimonials])
 
   useEffect(() => {
     if (!isAuthenticated) return
 
     const handleFocusRefresh = () => {
+      const now = Date.now()
+      if (now - focusRefreshRef.current.lastRunAt < 20_000) {
+        return
+      }
+      focusRefreshRef.current.lastRunAt = now
+
       if (protectedUserPaths.includes(path)) {
         void refreshDashboardSnapshot().catch((error) => {
           console.error(error)
@@ -873,6 +1126,8 @@ function App() {
           totalRewardsEarned: 0,
           recentActivity: [],
         },
+        winnerNotice: null,
+        enteredDrawPrizeIds: [],
       }
     }
 
@@ -890,6 +1145,8 @@ function App() {
         totalRewardsEarned: 0,
         recentActivity: [],
       },
+      winnerNotice: dashboardData.winnerNotice || null,
+      enteredDrawPrizeIds: dashboardData.enteredDrawPrizeIds || [],
     }
   }, [dashboardData])
 
@@ -902,6 +1159,31 @@ function App() {
         date: formatDisplayDate(entry.createdAt, entry.date),
       })),
     [dashboardData.recentEntries],
+  )
+
+  const enteredDrawPrizeIds = useMemo(
+    () => new Set(sharedUser.enteredDrawPrizeIds || []),
+    [sharedUser.enteredDrawPrizeIds],
+  )
+
+  const testimonialAccess = useMemo(() => {
+    const submittedCount = testimonials.filter((item) => item.userId === sharedUser.userId).length
+    const canViewSubmission = sharedUser.wins > 0
+
+    return {
+      canViewSubmission,
+      canSubmit: canViewSubmission && submittedCount < sharedUser.wins,
+      submittedCount,
+    }
+  }, [sharedUser.userId, sharedUser.wins, testimonials])
+
+  const visibleDraws = useMemo(
+    () =>
+      draws.map((draw) => ({
+        ...draw,
+        hasEntered: enteredDrawPrizeIds.has(draw.drawPrizeId),
+      })),
+    [draws, enteredDrawPrizeIds],
   )
 
   const walletBalance = sharedUser.walletBalance
@@ -977,19 +1259,24 @@ function App() {
   }
 
   const handleLogout = async () => {
+    setIsLoggingOut(true)
     try {
-      if (isAuthenticated) {
-        await apiRequest('/api/auth/logout', { method: 'POST' })
+      try {
+        if (isAuthenticated) {
+          await apiRequest('/api/auth/logout', { method: 'POST' })
+        }
+      } catch (_error) {
+        // Logout should still clear local UI even if the request fails.
       }
-    } catch (_error) {
-      // Logout should still clear local UI even if the request fails.
-    }
 
-    clearAuthenticatedState()
-    setEntryDraw(null)
-    setIsFundingOpen(false)
-    navigate('/')
-    await loadPublicData()
+      clearAuthenticatedState()
+      setEntryDraw(null)
+      setIsFundingOpen(false)
+      navigate('/')
+      await loadPublicData({ showLoader: false })
+    } finally {
+      setIsLoggingOut(false)
+    }
   }
 
   const handleEnterDraw = (draw) => {
@@ -1007,6 +1294,23 @@ function App() {
     setSelectedDrawDetails(draw)
   }
 
+  const handleViewTestimonialImages = (testimonial, startIndex = 0) => {
+    setTestimonialViewer({
+      title: testimonial.prizeTitle,
+      images: testimonial.images || [],
+      activeIndex: startIndex,
+    })
+  }
+
+  const handleCelebrateWinnerCard = (winner) => {
+    setEntryCelebration({
+      mode: 'winner-preview',
+      title: `${winner.referenceId} won ${winner.prizeTitle}`,
+      fee: 0,
+      copy: 'One day this could be you.',
+    })
+  }
+
   const handleConfirmEntry = async () => {
     if (!entryDraw) return
 
@@ -1022,6 +1326,12 @@ function App() {
         title: entryDraw.title,
         fee: entryDraw.entryFee,
       })
+      setDraws((prev) =>
+        prev.map((draw) => (draw.drawPrizeId === entryDraw.drawPrizeId ? { ...draw, hasEntered: true } : draw)),
+      )
+      setSelectedDrawDetails((prev) =>
+        prev?.drawPrizeId === entryDraw.drawPrizeId ? { ...prev, hasEntered: true } : prev,
+      )
       setEntryDraw(null)
       await refreshAfterMutation({ includeSession: true })
     } catch (error) {
@@ -1064,9 +1374,9 @@ function App() {
 
   const handleSpin = async () => {
     if (
-      spinState.hasSpunToday ||
+      !spinState.canSpin ||
       spinState.isSpinning ||
-      walletBalance < spinSettings.spinCost ||
+      (spinState.availableFreeSpins < 1 && walletBalance < spinSettings.spinCost) ||
       !spinSettings.rewards.length
     ) {
       return
@@ -1084,6 +1394,12 @@ function App() {
       result: null,
       showResultModal: false,
     }))
+    spinIntervalRef.current = window.setInterval(() => {
+      setSpinState((prev) => ({
+        ...prev,
+        rotation: prev.rotation + 36,
+      }))
+    }, 80)
 
     try {
       const result = await apiRequest('/api/spin', {
@@ -1092,13 +1408,25 @@ function App() {
       })
 
       const segmentAngle = 360 / spinSettings.rewards.length
-      const targetAngle = 360 - (result.wheelSegment * segmentAngle)
+      const targetAngle = (360 - (result.wheelSegment * segmentAngle)) % 360
       const fullTurns = 5 * 360
-      const nextRotation = warmupRotation + fullTurns + targetAngle
+      if (spinIntervalRef.current) {
+        window.clearInterval(spinIntervalRef.current)
+        spinIntervalRef.current = null
+      }
+      const currentRotation = spinRotationRef.current
+      const normalizedCurrent = ((currentRotation % 360) + 360) % 360
+      const deltaToTarget = (targetAngle - normalizedCurrent + 360) % 360
+      const nextRotation = currentRotation + fullTurns + deltaToTarget
 
       window.requestAnimationFrame(() => {
         setSpinState({
-          hasSpunToday: true,
+          hasSpunToday: Boolean(result.spinStatus?.hasSpunToday),
+          canSpin: Boolean(result.spinStatus?.canSpin),
+          dailySpinLimit: Number(result.spinStatus?.dailySpinLimit || spinState.dailySpinLimit || 1),
+          paidSpinsUsed: Number(result.spinStatus?.paidSpinsUsed || 0),
+          availableFreeSpins: Number(result.spinStatus?.availableFreeSpins || 0),
+          remainingTotalSpins: Number(result.spinStatus?.remainingTotalSpins || 0),
           isSpinning: true,
           isPriming: false,
           rotation: nextRotation,
@@ -1109,7 +1437,12 @@ function App() {
 
       spinTimeoutRef.current = window.setTimeout(async () => {
         setSpinState({
-          hasSpunToday: true,
+          hasSpunToday: Boolean(result.spinStatus?.hasSpunToday),
+          canSpin: Boolean(result.spinStatus?.canSpin),
+          dailySpinLimit: Number(result.spinStatus?.dailySpinLimit || spinState.dailySpinLimit || 1),
+          paidSpinsUsed: Number(result.spinStatus?.paidSpinsUsed || 0),
+          availableFreeSpins: Number(result.spinStatus?.availableFreeSpins || 0),
+          remainingTotalSpins: Number(result.spinStatus?.remainingTotalSpins || 0),
           isSpinning: false,
           isPriming: false,
           rotation: nextRotation,
@@ -1124,6 +1457,10 @@ function App() {
         spinTimeoutRef.current = null
       }, 6000)
     } catch (error) {
+      if (spinIntervalRef.current) {
+        window.clearInterval(spinIntervalRef.current)
+        spinIntervalRef.current = null
+      }
       setSpinState((prev) => ({
         ...prev,
         isSpinning: false,
@@ -1300,7 +1637,10 @@ function App() {
         method: 'POST',
         body: bank,
       })
-      await refreshAfterMutation({ includeAdmin: true, includeSession: false })
+      await refreshBanks()
+      if (path.startsWith('/admin')) {
+        await loadAdminData('/admin/banks').catch(() => {})
+      }
     } catch (error) {
       showAppError(error)
     }
@@ -1314,7 +1654,10 @@ function App() {
           [field]: value,
         },
       })
-      await refreshAfterMutation({ includeAdmin: true, includeSession: false })
+      await refreshBanks()
+      if (path.startsWith('/admin')) {
+        await loadAdminData('/admin/banks').catch(() => {})
+      }
     } catch (error) {
       showAppError(error)
     }
@@ -1325,7 +1668,10 @@ function App() {
       await apiRequest(`/api/banks/${bankId}`, {
         method: 'DELETE',
       })
-      await refreshAfterMutation({ includeAdmin: true, includeSession: false })
+      await refreshBanks()
+      if (path.startsWith('/admin')) {
+        await loadAdminData('/admin/banks').catch(() => {})
+      }
     } catch (error) {
       showAppError(error)
     }
@@ -1351,9 +1697,60 @@ function App() {
         isFormData: true,
       })
 
-      await refreshAfterMutation({ includeSession: true })
+      await Promise.allSettled([
+        refreshAfterMutation({ includeSession: true }),
+        refreshWinnersAndTestimonials(),
+      ])
     } catch (error) {
       showAppError(error)
+      throw error
+    }
+  }
+
+  const handleUpdateTestimonial = async (testimonialId, { prizeTitle, winningDate, message, imageFiles }) => {
+    try {
+      const formData = new FormData()
+      if (prizeTitle) {
+        formData.append('prizeTitle', prizeTitle)
+      }
+      if (winningDate) {
+        formData.append('winningDate', new Date(winningDate).toISOString())
+      }
+      formData.append('message', message)
+      ;(imageFiles || []).forEach((image) => formData.append('images', image))
+
+      const response = await apiRequest(`/api/testimonials/${testimonialId}`, {
+        method: 'PATCH',
+        body: formData,
+        isFormData: true,
+      })
+
+      await Promise.allSettled([
+        refreshWinnersAndTestimonials(),
+        authUser?.role === 'admin' ? loadAdminData('/admin/testimonials') : Promise.resolve(),
+      ])
+      setAppFeedback({
+        type: 'success',
+        message: response?.testimonial ? 'Testimonial updated successfully.' : 'Your testimonial changes were saved.',
+      })
+    } catch (error) {
+      showAppError(error)
+      throw error
+    }
+  }
+
+  const handleDeleteTestimonial = async (testimonialId) => {
+    try {
+      await apiRequest(`/api/testimonials/${testimonialId}`, {
+        method: 'DELETE',
+      })
+      await Promise.allSettled([
+        refreshWinnersAndTestimonials(),
+        authUser?.role === 'admin' ? loadAdminData('/admin/testimonials') : Promise.resolve(),
+      ])
+    } catch (error) {
+      showAppError(error)
+      throw error
     }
   }
 
@@ -1395,9 +1792,13 @@ function App() {
       isFormData: true,
     })
 
-    await refreshAfterMutation({ includeAdmin: true, includeSession: false })
+    const createdDraw = syncManagedDrawLocally(response.draw)
+    void Promise.allSettled([
+      loadPublicData(),
+      authUser?.role === 'admin' ? loadAdminData('/admin/create-draw') : Promise.resolve(),
+    ])
     return {
-      startLabel: formatDisplayDate(response.draw.startTime, 'Live now'),
+      startLabel: formatDisplayDate(createdDraw.startTime, 'Live now'),
     }
   }
 
@@ -1424,19 +1825,31 @@ function App() {
     }
     ;(formState.imageFile || []).forEach((file) => formData.append('images', file))
 
-    await apiRequest(`/api/draws/${drawId}`, {
+    const response = await apiRequest(`/api/draws/${drawId}`, {
       method: 'PATCH',
       body: formData,
       isFormData: true,
     })
-    await refreshAfterMutation({ includeAdmin: true, includeSession: false })
+    syncManagedDrawLocally(response.draw)
+    void Promise.allSettled([
+      loadPublicData(),
+      authUser?.role === 'admin' ? loadAdminData(path.startsWith('/admin') ? path : '/admin') : Promise.resolve(),
+    ])
   }
 
   const handleDeleteDraw = async (drawId) => {
-    await apiRequest(`/api/draws/${drawId}`, {
-      method: 'DELETE',
-    })
-    await refreshAfterMutation({ includeAdmin: true, includeSession: false })
+    try {
+      await apiRequest(`/api/draws/${drawId}`, {
+        method: 'DELETE',
+      })
+      removeManagedDrawLocally(drawId)
+      void Promise.allSettled([
+        loadPublicData(),
+        authUser?.role === 'admin' ? loadAdminData(path.startsWith('/admin') ? path : '/admin') : Promise.resolve(),
+      ])
+    } catch (error) {
+      showAppError(error)
+    }
   }
 
   const handleCreateQuiz = async (formState) => {
@@ -1499,11 +1912,14 @@ function App() {
 
   const handleUpdateSpinSettings = async (settings) => {
     try {
-      await apiRequest('/api/spin/settings', {
+      const response = await apiRequest('/api/spin/settings', {
         method: 'PATCH',
         body: settings,
       })
-      await refreshAfterMutation({ includeAdmin: true, includeSession: false })
+      if (response?.settings) {
+        setSpinSettings(mapSpinSettings(response.settings))
+      }
+      void refreshAfterMutation({ includeAdmin: true, includeSession: false })
     } catch (error) {
       showAppError(error)
     }
@@ -1511,11 +1927,28 @@ function App() {
 
   const handleUpdateSpinReward = async (rewardId, updates) => {
     try {
-      await apiRequest(`/api/spin/rewards/${rewardId}`, {
+      const response = await apiRequest(`/api/spin/rewards/${rewardId}`, {
         method: 'PATCH',
         body: updates,
       })
-      await refreshAfterMutation({ includeAdmin: true, includeSession: false })
+      if (response?.reward) {
+        setSpinSettings((prev) => ({
+          ...prev,
+          rewards: prev.rewards.map((reward) =>
+            reward.id === rewardId
+              ? {
+                  ...reward,
+                  ...response.reward,
+                  rewardType: response.reward.rewardType || response.reward.type,
+                  type: response.reward.rewardType || response.reward.type,
+                  rewardAmount: Number(response.reward.rewardAmount || response.reward.amount || 0),
+                  amount: Number(response.reward.rewardAmount || response.reward.amount || 0),
+                }
+              : reward,
+          ),
+        }))
+      }
+      void refreshAfterMutation({ includeAdmin: true, includeSession: false })
     } catch (error) {
       showAppError(error)
     }
@@ -1545,6 +1978,44 @@ function App() {
     }
   }
 
+  const handleAnnouncePendingWinner = async (drawId) => {
+    if (!drawId) {
+      showAppError(new Error('The selected draw is missing an id. Please refresh the winners page and try again.'))
+      return
+    }
+
+    try {
+      await apiRequest(`/api/admin/draw-winners/${drawId}/announce`, {
+        method: 'POST',
+        body: {},
+      })
+      await Promise.allSettled([
+        loadPublicData(),
+        refreshWinnersAndTestimonials(),
+        loadAdminData('/admin/winners'),
+      ])
+    } catch (error) {
+      showAppError(error)
+    }
+  }
+
+  const handleRerunPendingWinner = async (drawId) => {
+    if (!drawId) {
+      showAppError(new Error('The selected draw is missing an id. Please refresh the winners page and try again.'))
+      return
+    }
+
+    try {
+      await apiRequest(`/api/admin/draw-winners/${drawId}/rerun`, {
+        method: 'POST',
+        body: {},
+      })
+      await loadAdminData('/admin/winners')
+    } catch (error) {
+      showAppError(error)
+    }
+  }
+
   const renderPage = () => {
     const isAdmin = authUser?.role === 'admin'
     const isProtectedPath = protectedUserPaths.includes(path)
@@ -1566,12 +2037,14 @@ function App() {
       case '/':
         return (
           <Home
-            draws={draws}
+            draws={visibleDraws}
+            winners={winners}
             serverNow={serverNow}
             onEnterDraw={handleEnterDraw}
             onViewDraw={handleViewDraw}
             celebration={entryCelebration}
             onDismissCelebration={() => setEntryCelebration(null)}
+            onCelebrateWinner={handleCelebrateWinnerCard}
             isLoading={isHomeLoading}
           />
         )
@@ -1586,6 +2059,8 @@ function App() {
             recentEntries={recentEntries}
             notificationsUnreadCount={notificationsUnreadCount}
             onNavigate={navigate}
+            canOpenTestimonials={testimonialAccess.canSubmit}
+            testimonial={testimonials.find((item) => item.userId === sharedUser.userId) || null}
             isLoading={isAuthLoading || isDashboardLoading}
           />
         )
@@ -1596,10 +2071,13 @@ function App() {
             transactions={transactions}
             isFundingOpen={isFundingOpen}
             banks={banks}
+            isBanksLoading={isBanksLoading}
+            banksError={banksError}
             supportContact={SUPPORT_CONTACT}
             onFundWallet={() => setIsFundingOpen(true)}
             onCloseFunding={() => setIsFundingOpen(false)}
             onSubmitFunding={handleSubmitFunding}
+            onRetryBanks={refreshBanks}
           />
         )
       case '/daily-chances':
@@ -1623,7 +2101,7 @@ function App() {
           />
         )
       case '/winners':
-        return <Winners winners={winners} testimonials={testimonials} />
+        return <Winners winners={winners} testimonials={testimonials} onViewTestimonialImages={handleViewTestimonialImages} onCelebrateWinner={handleCelebrateWinnerCard} />
       case '/notifications':
         return <Notifications notifications={notifications} />
       case '/terms':
@@ -1636,8 +2114,11 @@ function App() {
         return (
           <Testimonials
             testimonials={testimonials}
-            canSubmit={sharedUser.wins > 0}
+            access={testimonialAccess}
+            currentUserId={sharedUser.userId}
             onSubmitTestimonial={handleSubmitTestimonial}
+            onUpdateTestimonial={handleUpdateTestimonial}
+            onViewImages={handleViewTestimonialImages}
           />
         )
       case '/admin':
@@ -1698,7 +2179,11 @@ function App() {
               referenceId: winner.referenceId,
               prize: winner.prizeTitle,
               date: winner.date,
+              slotNumber: winner.slotNumber,
             }))}
+            pendingWinners={pendingDrawWinners}
+            onAnnounceWinner={handleAnnouncePendingWinner}
+            onRerunWinner={handleRerunPendingWinner}
           />
         )
       case '/admin/quiz':
@@ -1718,6 +2203,15 @@ function App() {
             notifications={notifications}
             onSendNotification={handleSendNotification}
             onUpdateSettings={handleUpdateNotificationSettings}
+          />
+        )
+      case '/admin/testimonials':
+        return (
+          <AdminTestimonials
+            testimonials={testimonials}
+            onUpdateTestimonial={handleUpdateTestimonial}
+            onDeleteTestimonial={handleDeleteTestimonial}
+            onViewImages={handleViewTestimonialImages}
           />
         )
       case '/admin/users':
@@ -1746,12 +2240,14 @@ function App() {
 
         return (
           <Home
-            draws={draws}
+            draws={visibleDraws}
+            winners={winners}
             serverNow={serverNow}
             onViewDraw={handleViewDraw}
             onEnterDraw={handleEnterDraw}
             celebration={entryCelebration}
             onDismissCelebration={() => setEntryCelebration(null)}
+            onCelebrateWinner={handleCelebrateWinnerCard}
             isLoading={isHomeLoading}
           />
         )
@@ -1765,7 +2261,6 @@ function App() {
       <Navbar
         currentPath={path}
         onNavigate={navigate}
-        onOpenInfo={openInfoModal}
         notifications={notifications}
         notificationsUnreadCount={notificationsUnreadCount}
         isNotificationsOpen={isNotificationsOpen}
@@ -1773,9 +2268,20 @@ function App() {
         onToggleNotifications={handleToggleNotifications}
         isAuthenticated={isAuthenticated}
         isAuthLoading={isAuthLoading}
+        isLoggingOut={isLoggingOut}
         onLogout={handleLogout}
       />
       <main className="page-container">
+        {serviceDegradedMessage ? (
+          <section className="card feedback-banner feedback-banner-warning">
+            <div className="row spread">
+              <p>{serviceDegradedMessage}</p>
+              <button type="button" className="text-link" onClick={() => setServiceDegradedMessage('')}>
+                Dismiss
+              </button>
+            </div>
+          </section>
+        ) : null}
         {appFeedback ? (
           <section className={`card feedback-banner feedback-banner-${appFeedback.type}`}>
             <div className="row spread">
@@ -1796,11 +2302,22 @@ function App() {
         )}
       </main>
       <SiteFooter onNavigate={navigate} />
-      <button type="button" className="floating-install-btn" onClick={() => setIsInstallOpen(true)}>
-        Install
-      </button>
-      <button type="button" className="floating-info-btn" onClick={openInfoModal}>
-        Info
+      {!isAppInstalled ? (
+        <button
+          type="button"
+          className="floating-install-btn"
+          onClick={() => {
+            markInstallPromptSeen()
+            setIsInstallOpen(true)
+          }}
+          aria-label="Install app"
+        >
+          <span className="floating-btn-label">Install</span>
+          <span className="floating-btn-icon">{'\u2193'}</span>
+        </button>
+      ) : null}
+      <button type="button" className="floating-info-btn" onClick={openInfoModal} aria-label="Platform information">
+        <strong>?</strong>
       </button>
       <EntryModal
         draw={entryDraw}
@@ -1818,12 +2335,78 @@ function App() {
       <InfoModal isOpen={isInfoOpen} onClose={closeInfoModal} />
       <InstallPromptModal
         isOpen={isInstallOpen}
-        onClose={() => setIsInstallOpen(false)}
+        onClose={() => {
+          markInstallPromptSeen()
+          setIsInstallOpen(false)
+        }}
         onInstall={handleInstallApp}
         canInstall={Boolean(deferredInstallPrompt)}
       />
+      {testimonialViewer ? (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="modal-card stack">
+            <div className="row spread">
+              <h3>{testimonialViewer.title}</h3>
+              <button type="button" className="text-link" onClick={() => setTestimonialViewer(null)}>
+                Close
+              </button>
+            </div>
+            <img
+              src={testimonialViewer.images[testimonialViewer.activeIndex]}
+              alt={testimonialViewer.title}
+              style={{ width: '100%', borderRadius: '18px', maxHeight: '60vh', objectFit: 'contain' }}
+            />
+            {testimonialViewer.images.length > 1 ? (
+              <div className="row">
+                {testimonialViewer.images.map((image, index) => (
+                  <button
+                    key={`${image}-${index}`}
+                    type="button"
+                    className={`btn ${index === testimonialViewer.activeIndex ? 'btn-primary' : 'btn-soft'}`}
+                    onClick={() => setTestimonialViewer((prev) => ({ ...prev, activeIndex: index }))}
+                  >
+                    Image {index + 1}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+      {winnerCelebration ? (
+        <div className="celebration-layer celebration-winner-login" role="dialog" aria-modal="true">
+          <div className="confetti-field winner-confetti" aria-hidden="true">
+            {Array.from({ length: 42 }, (_, piece) => (
+              <span
+                key={piece}
+                className="confetti-piece"
+                style={{
+                  // Winner login celebration is intentionally louder than
+                  // entry confirmation so the two moments feel distinct.
+                  '--x': `${(piece % 12) * 8}%`,
+                  '--delay': `${piece * 0.035}s`,
+                  '--duration': `${2 + (piece % 6) * 0.18}s`,
+                }}
+              />
+            ))}
+          </div>
+          <div className="celebration-card card">
+            <p className="eyebrow">Congratulations</p>
+            <h2>You won this draw!</h2>
+            <p className="muted">
+              Winning reference: <strong>{winnerCelebration.referenceId}</strong>
+              {winnerCelebration.slotNumber ? ` | Draw Slot ${winnerCelebration.slotNumber}` : ''}
+            </p>
+            <p className="celebration-copy">{winnerCelebration.title}</p>
+            <button type="button" className="btn btn-primary" onClick={() => setWinnerCelebration(null)}>
+              Celebrate
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
 
 export default App
+

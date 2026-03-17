@@ -1,6 +1,35 @@
 .testimonial-card {
+  position: relative;
+  overflow: hidden;
   display: grid;
   gap: 0.8rem;
+  background:
+    radial-gradient(circle at top right, rgba(255, 218, 160, 0.34), transparent 28%),
+    linear-gradient(145deg, rgba(255, 250, 238, 0.98), rgba(255, 244, 224, 0.98));
+  border-color: #efd8ab;
+  box-shadow: 0 14px 28px rgba(140, 92, 22, 0.1);
+}
+
+.testimonial-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 8px;
+  background: linear-gradient(180deg, #d39a39, #efc36b);
+}
+
+.testimonial-card .eyebrow {
+  color: #9a6412;
+}
+
+.testimonial-card h3 {
+  color: #7f4d09;
+}
+
+.testimonial-card .status-pill {
+  background: rgba(255, 242, 214, 0.88);
+  color: #8a5a10;
+  border: 1px solid #efcf8c;
 }
 
 .testimonial-images {
@@ -9,9 +38,16 @@
   gap: 0.65rem;
 }
 
+.testimonial-image-btn {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
 .testimonial-images img {
   width: 100%;
   aspect-ratio: 1;
   object-fit: cover;
   border-radius: 14px;
+  box-shadow: 0 10px 20px rgba(153, 110, 27, 0.12);
 }

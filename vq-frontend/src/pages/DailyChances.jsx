@@ -53,7 +53,10 @@ function DailyChances({
             ) : (
               <>
                 <p className="muted">Wallet Balance: {formatCurrency(walletBalance)}</p>
-                <p className="muted">Spin cost: {formatCurrency(spinCost)}. You can only spin once per day.</p>
+                <p className="muted">
+                  Spin cost: {formatCurrency(spinCost)}. Paid spins left today: {spinState.remainingTotalSpins}.
+                  {spinState.availableFreeSpins > 0 ? ` Free spins available now: ${spinState.availableFreeSpins}.` : ''}
+                </p>
               </>
             )}
           </section>
@@ -62,7 +65,12 @@ function DailyChances({
             isSpinning={spinState.isSpinning}
             isPriming={spinState.isPriming}
             rotation={spinState.rotation}
-            disabled={isLoading || spinState.hasSpunToday || spinState.isSpinning || walletBalance < spinCost}
+            disabled={
+              isLoading ||
+              !spinState.canSpin ||
+              spinState.isSpinning ||
+              (spinState.availableFreeSpins < 1 && walletBalance < spinCost)
+            }
             onSpin={onSpin}
             isLoading={isLoading}
           />

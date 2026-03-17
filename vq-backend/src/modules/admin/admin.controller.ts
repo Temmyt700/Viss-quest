@@ -46,4 +46,19 @@ export const adminController = {
     const insights = await adminService.getReferralInsights();
     res.status(200).json(insights);
   },
+
+  async pendingDrawWinners(_req: Request, res: Response) {
+    const pending = await adminService.getPendingDrawWinners();
+    res.status(200).json({ pending });
+  },
+
+  async announcePendingWinner(req: Request, res: Response) {
+    const result = await adminService.announcePendingWinner(req.params.id, req.authUser!.id);
+    res.status(200).json(result);
+  },
+
+  async rerunPendingWinner(req: Request, res: Response) {
+    const result = await adminService.rerunPendingWinner(req.params.id, req.authUser!.id);
+    res.status(200).json(result);
+  },
 };

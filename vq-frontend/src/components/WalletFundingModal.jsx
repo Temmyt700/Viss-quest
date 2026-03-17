@@ -3,7 +3,17 @@ import { formatCurrency } from '../utils/format'
 import { APPROVED_FUNDING_AMOUNTS } from '../utils/constants'
 import './WalletFundingModal.css'
 
-function WalletFundingModal({ isOpen, user, banks, supportContact, onClose, onSubmit }) {
+function WalletFundingModal({
+  isOpen,
+  user,
+  banks,
+  isBanksLoading,
+  banksError,
+  supportContact,
+  onClose,
+  onSubmit,
+  onRetryBanks,
+}) {
   const [selectedAmount, setSelectedAmount] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submissionComplete, setSubmissionComplete] = useState(false)
@@ -65,18 +75,40 @@ function WalletFundingModal({ isOpen, user, banks, supportContact, onClose, onSu
 
             {hasAmount ? (
               <section className="funding-instructions card">
-                <div className="bank-list">
-                  {banks.map((bank) => (
-                    <div key={bank.id} className="bank-card">
-                      <p className="eyebrow">Bank Name</p>
-                      <strong>{bank.bankName}</strong>
-                      <p className="eyebrow">Account Number</p>
-                      <strong>{bank.accountNumber}</strong>
-                      <p className="eyebrow">Account Name</p>
-                      <strong>{bank.accountName}</strong>
-                    </div>
-                  ))}
-                </div>
+                {isBanksLoading ? (
+                  <div className="bank-state-card stack">
+                    <strong>Loading bank accounts...</strong>
+                    <p className="muted">Please wait while we load the payment destination details.</p>
+                  </div>
+                ) : banksError ? (
+                  <div className="bank-state-card stack">
+                    <strong>Bank accounts unavailable</strong>
+                    <p className="muted">{banksError}</p>
+                    <button type="button" className="btn btn-soft" onClick={onRetryBanks}>
+                      Retry bank accounts
+                    </button>
+                  </div>
+                ) : !banks.length ? (
+                  <div className="bank-state-card stack">
+                    <strong>No bank accounts configured</strong>
+                    <p className="muted">
+                      Funding is temporarily unavailable until bank account details are restored.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bank-list">
+                    {banks.map((bank) => (
+                      <div key={bank.id} className="bank-card">
+                        <p className="eyebrow">Bank Name</p>
+                        <strong>{bank.bankName}</strong>
+                        <p className="eyebrow">Account Number</p>
+                        <strong>{bank.accountNumber}</strong>
+                        <p className="eyebrow">Account Name</p>
+                        <strong>{bank.accountName}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="grid two">
                   <div>
                     <p className="eyebrow">Selected Amount</p>
@@ -99,24 +131,34 @@ function WalletFundingModal({ isOpen, user, banks, supportContact, onClose, onSu
                   <strong>WARNING:</strong> Do NOT click this button unless you have already sent the
                   payment. False confirmations may lead to permanent account suspension.
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={isSubmitting}
-                  onClick={async () => {
-                    setIsSubmitting(true)
-                    try {
-                      await onSubmit(Number(selectedAmount))
-                      setSubmissionComplete(true)
-                    } catch (_error) {
-                      // Parent state already surfaces a user-friendly error banner.
-                    } finally {
-                      setIsSubmitting(false)
-                    }
-                  }}
-                >
-                  {isSubmitting ? 'Submitting...' : 'I have sent the money'}
-                </button>
+                {banks.length ? (
+                  <button
+                    type="button"
+                    className={`btn btn-primary ${isSubmitting ? 'is-loading' : ''}`}
+                    disabled={isSubmitting}
+                    aria-busy={isSubmitting}
+                    onClick={async () => {
+                      setIsSubmitting(true)
+                      try {
+                        await onSubmit(Number(selectedAmount))
+                        setSubmissionComplete(true)
+                      } catch (_error) {
+                        // Parent state already surfaces a user-friendly error banner.
+                      } finally {
+                        setIsSubmitting(false)
+                      }
+                    }}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <span className="btn-spinner" aria-hidden="true" />
+                        Submitting...
+                      </>
+                    ) : (
+                      'I have sent the money'
+                    )}
+                  </button>
+                ) : null}
                 <p className="muted support-copy">
                   If your wallet balance does not update within 24 hours, please send a screenshot of
                   your payment to our WhatsApp number: {supportContact.whatsapp} or our support email:

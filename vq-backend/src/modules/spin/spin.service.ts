@@ -10,7 +10,8 @@ import {
 } from "../../db/schema/index.js";
 import { toNumber } from "../../utils/money.js";
 import { pickRandomItem } from "../../utils/random.js";
-import { getUtcDayStart, isSameUtcDay } from "../../utils/time.js";
+import { getUtcDayStart } from "../../utils/time.js";
+import { getSpinAllowance } from "../../utils/spin.js";
 
 const DEFAULT_SPIN_SETTINGS = {
   spinCost: 15,
@@ -60,17 +61,25 @@ export const spinService = {
   },
 
   async getStatus(userId: string) {
-    const config = await this.getConfig();
-    const [latest] = await db
-      .select()
-      .from(spinHistory)
-      .where(eq(spinHistory.userId, userId))
-      .orderBy(desc(spinHistory.spinDate))
-      .limit(1);
+    const [settingsRow, rewards, todaySpins] = await Promise.all([
+      getOrCreateSettings(),
+      db.select().from(spinRewards).orderBy(spinRewards.createdAt),
+      db
+        .select()
+        .from(spinHistory)
+        .where(and(eq(spinHistory.userId, userId), gte(spinHistory.spinDate, getUtcDayStart())))
+        .orderBy(spinHistory.spinDate),
+    ]);
+    const settings = parseSpinSettings(settingsRow);
+    const allowance = getSpinAllowance(todaySpins, rewards, settings.dailySpinLimit);
 
     return {
-      ...config,
-      hasSpunToday: latest ? isSameUtcDay(new Date(latest.spinDate), new Date()) : false,
+      ...settings,
+      rewards: rewards.map((reward) => ({
+        ...reward,
+        rewardAmount: toNumber(reward.rewardAmount),
+      })),
+      ...allowance,
     };
   },
 
@@ -93,19 +102,23 @@ export const spinService = {
       const todaySpins = await tx
         .select()
         .from(spinHistory)
-        .where(and(eq(spinHistory.userId, userId), gte(spinHistory.spinDate, todayStart)));
+        .where(and(eq(spinHistory.userId, userId), gte(spinHistory.spinDate, todayStart)))
+        .orderBy(spinHistory.spinDate);
 
-      if (todaySpins.length >= settings.dailySpinLimit) {
+      const allRewards = await tx.select().from(spinRewards).orderBy(spinRewards.createdAt);
+      const rewards = allRewards.filter((reward) => reward.isActive);
+      if (!rewards.length) {
+        throw new Error("Spin rewards are not configured.");
+      }
+
+      const allowance = getSpinAllowance(todaySpins, allRewards, settings.dailySpinLimit);
+      if (!allowance.canSpin) {
         throw new Error("You have already used your spin limit for today.");
       }
 
-      if (toNumber(wallet.balance) < settings.spinCost) {
+      const chargeAmount = allowance.availableFreeSpins > 0 ? 0 : settings.spinCost;
+      if (toNumber(wallet.balance) < chargeAmount) {
         throw new Error("Insufficient wallet balance.");
-      }
-
-      const rewards = await tx.select().from(spinRewards).where(eq(spinRewards.isActive, true));
-      if (!rewards.length) {
-        throw new Error("Spin rewards are not configured.");
       }
 
       const eligibleRewards = [];
@@ -137,8 +150,8 @@ export const spinService = {
       const rewardPool = payoutLimitedRewards.length ? payoutLimitedRewards : eligibleRewards;
       const reward = pickRandomItem(rewardPool);
       const rewardAmount = reward.rewardAmount;
-      const nextBalance = toNumber(wallet.balance) - settings.spinCost + rewardAmount;
-      const wheelSegment = rewardPool.findIndex((item) => item.id === reward.id);
+      const nextBalance = toNumber(wallet.balance) - chargeAmount + rewardAmount;
+      const wheelSegment = rewards.findIndex((item) => item.id === reward.id);
 
       await tx
         .update(wallets)
@@ -149,20 +162,23 @@ export const spinService = {
         userId,
         rewardId: reward.id,
         rewardAmount: String(rewardAmount),
-        spinCost: String(settings.spinCost),
+        spinCost: String(chargeAmount),
       });
 
-      await tx.insert(walletTransactions).values([
-        {
+      const walletEntries = [];
+      if (chargeAmount > 0) {
+        walletEntries.push({
           userId,
           walletId: wallet.id,
           type: "spin_fee",
-          amount: String(settings.spinCost),
+          amount: String(chargeAmount),
           status: "completed",
           reference: user.referenceId ?? undefined,
           description: "Daily spin fee",
-        },
-        {
+        });
+      }
+      if (reward.rewardType === "cash" && rewardAmount > 0) {
+        walletEntries.push({
           userId,
           walletId: wallet.id,
           type: "spin_reward",
@@ -170,16 +186,26 @@ export const spinService = {
           status: "completed",
           reference: user.referenceId ?? undefined,
           description: `Spin reward: ${reward.label}`,
-        },
-      ]);
+        });
+      }
+      if (walletEntries.length) {
+        await tx.insert(walletTransactions).values(walletEntries);
+      }
+
+      const nextAllowance = getSpinAllowance(
+        [...todaySpins, { rewardId: reward.id }],
+        allRewards,
+        settings.dailySpinLimit,
+      );
 
       return {
         reward: {
           ...reward,
           rewardAmount,
         },
-        spinCost: settings.spinCost,
+        spinCost: chargeAmount,
         wheelSegment,
+        spinStatus: nextAllowance,
       };
     });
   },
@@ -232,7 +258,7 @@ export const spinService = {
     rewardId: string,
     input: Partial<{
       label: string;
-      rewardType: "cash" | "free_entry" | "none";
+      rewardType: "cash" | "free_entry" | "none" | "try_again";
       rewardAmount: number;
       maxDailyWinners: number;
       isActive: boolean;

@@ -87,7 +87,7 @@ export const updateDrawSchema = z.object({
     goLiveMode: z.enum(["instant", "schedule"]),
     startTime: optionalIsoDate,
     endTime: optionalIsoDate,
-    status: z.enum(["draft", "available", "almost_filled", "closing_soon", "limited_slots", "filled", "closed"]).optional(),
+    status: z.enum(["active", "draft", "available", "almost_filled", "closing_soon", "limited_slots", "filled", "closed", "winner_pending", "winner_announced"]).optional(),
   }).superRefine((data, ctx) => {
     if (!data.endTime) {
       ctx.addIssue({
@@ -113,7 +113,7 @@ export const updateDrawSchema = z.object({
 
 export const updateDrawStatusSchema = z.object({
   body: z.object({
-    status: z.enum(["auto", "available", "almost_filled", "closing_soon", "limited_slots", "filled", "closed"]),
+    status: z.enum(["auto", "active", "available", "almost_filled", "closing_soon", "limited_slots", "filled", "closed", "winner_pending", "winner_announced"]),
   }),
   query: z.object({}).optional().default({}),
   params: z.object({

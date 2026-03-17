@@ -28,6 +28,14 @@ export const createApp = () => {
   );
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+  app.use("/api", (_req, res, next) => {
+    // Dynamic API responses should always come from the network so the PWA
+    // shell never serves stale draw, wallet, or dashboard data from cache.
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    next();
+  });
 
   app.get("/health", (_req, res) => {
     res.status(200).json({ ok: true });

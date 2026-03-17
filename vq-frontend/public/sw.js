@@ -1,5 +1,20 @@
-const CACHE_NAME = 'vissquest-static-v1'
+const CACHE_NAME = 'vissquest-static-v2'
 const OFFLINE_ASSETS = ['/', '/manifest.json', '/vq-logo.svg']
+
+const isCacheableStaticRequest = (requestUrl, request) => {
+  if (request.method !== 'GET') return false
+  if (requestUrl.origin !== self.location.origin) return false
+  if (requestUrl.pathname.startsWith('/api/')) return false
+
+  return (
+    request.mode === 'navigate' ||
+    request.destination === 'style' ||
+    request.destination === 'script' ||
+    request.destination === 'image' ||
+    request.destination === 'font' ||
+    requestUrl.pathname === '/manifest.json'
+  )
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -16,7 +31,13 @@ self.addEventListener('activate', (event) => {
 })
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return
+  const requestUrl = new URL(event.request.url)
+  if (!isCacheableStaticRequest(requestUrl, event.request)) {
+    // Never cache API traffic in the service worker. Dynamic responses must
+    // stay network-fresh so draw creation/deletion and dashboard updates are
+    // visible immediately without clearing browser cache.
+    return
+  }
 
   event.respondWith(
     caches.match(event.request).then((cached) => {

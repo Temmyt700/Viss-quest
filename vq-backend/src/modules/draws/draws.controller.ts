@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { drawsService } from "./draws.service.js";
+import { winnersService } from "../winners/winners.service.js";
 
 export const drawsController = {
   async listActive(_req: Request, res: Response) {
@@ -19,6 +20,9 @@ export const drawsController = {
 
   async enter(req: Request, res: Response) {
     const result = await drawsService.enter(req.params.drawId, req.body.drawPrizeId, req.authUser!.id);
+    if (result.shouldPickWinner) {
+      await winnersService.selectForDraw(req.params.drawId).catch(() => null);
+    }
     res.status(200).json(result);
   },
 
@@ -34,11 +38,15 @@ export const drawsController = {
 
   async updateStatus(req: Request, res: Response) {
     const result = await drawsService.updateStatus(req.params.id, req.body.status);
+    if (req.body.status === "closed") {
+      await winnersService.selectForDraw(req.params.id).catch(() => null);
+    }
     res.status(200).json(result);
   },
 
   async closeNow(req: Request, res: Response) {
     const result = await drawsService.closeNow(req.params.id);
+    await winnersService.selectForDraw(req.params.id).catch(() => null);
     res.status(200).json(result);
   },
 

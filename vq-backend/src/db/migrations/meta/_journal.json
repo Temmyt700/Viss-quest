@@ -43,6 +43,13 @@
       "when": 1773643892949,
       "tag": "0005_noisy_gauntlet",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1773664129297,
+      "tag": "0006_gorgeous_mystique",
+      "breakpoints": true
     }
   ]
 }

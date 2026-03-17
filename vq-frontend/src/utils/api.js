@@ -9,6 +9,10 @@ async function parseResponse(response) {
       typeof payload === 'object' && payload !== null && 'message' in payload
         ? payload.message
         : 'Request failed.'
+
+    if (/database|failed query|drizzlequeryerror/i.test(String(message))) {
+      throw new Error('Service is temporarily unavailable right now. Please try again in a moment.')
+    }
     throw new Error(message)
   }
 
@@ -25,12 +29,22 @@ export async function apiRequest(path, options = {}) {
     nextBody = JSON.stringify(body)
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    credentials: 'include',
-    ...rest,
-    headers: requestHeaders,
-    body: nextBody,
-  })
+  let response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      credentials: 'include',
+      cache: 'no-store',
+      ...rest,
+      headers: requestHeaders,
+      body: nextBody,
+    })
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error('Please check your internet connection and try again.')
+    }
+
+    throw error
+  }
 
   return parseResponse(response)
 }

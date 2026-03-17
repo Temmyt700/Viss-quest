@@ -9,26 +9,26 @@ import { spinService } from "../spin/spin.service.js";
 import { usersService } from "../users/users.service.js";
 import { winnersService } from "../winners/winners.service.js";
 
-const mapDrawCard = (draw: any, now: Date) => ({
-  id: draw.id,
-  drawId: draw.drawId,
+const mapDrawCard = (draw: any, prize: any, now: Date) => ({
+  id: prize.id,
+  drawId: draw.id,
   slotNumber: draw.slotNumber,
-  title: draw.title,
-  description: draw.description ?? "",
-  coverImage: draw.images?.[0]?.imageUrl ?? draw.imageUrl ?? null,
-  images: (draw.images || []).map((image: any) => image.imageUrl ?? image),
-  entryFee: Number(draw.entryFee ?? 0),
-  entryFeeText: `NGN ${Number(draw.entryFee ?? 0).toLocaleString()}`,
-  prizeValue: Number(draw.prizeValue ?? 0),
-  status: draw.urgencyStatus ?? draw.status,
-  statusLabel: String(draw.urgencyStatus ?? draw.status ?? "available").replaceAll("_", " "),
-  canEnter: !["filled", "closed", "completed"].includes(draw.urgencyStatus ?? draw.status),
-  startTime: draw.startTime,
-  endTime: draw.endTime,
-  countdownTarget: draw.endTime ?? null,
-  currentEntries: draw.currentEntries,
-  maxEntries: draw.maxEntries,
-  drawPrizeId: draw.id,
+  title: prize.title,
+  description: prize.description ?? draw.description ?? "",
+  coverImage: prize.images?.[0]?.imageUrl ?? prize.imageUrl ?? null,
+  images: (prize.images || []).map((image: any) => image.imageUrl ?? image),
+  entryFee: Number(prize.entryFee ?? 0),
+  entryFeeText: `NGN ${Number(prize.entryFee ?? 0).toLocaleString()}`,
+  prizeValue: Number(prize.prizeValue ?? 0),
+  status: prize.urgencyStatus ?? draw.status,
+  statusLabel: String(prize.urgencyStatus ?? draw.status ?? "available").replaceAll("_", " "),
+  canEnter: !["filled", "closed", "completed"].includes(prize.urgencyStatus ?? draw.status),
+  startTime: prize.startTime ?? draw.startTime,
+  endTime: prize.endTime ?? draw.endTime,
+  countdownTarget: prize.endTime ?? draw.endTime ?? null,
+  currentEntries: prize.currentEntries,
+  maxEntries: prize.maxEntries,
+  drawPrizeId: prize.id,
   drawRef: draw.drawId,
   goLiveMode: draw.goLiveMode,
   drawDay: draw.drawDay,
@@ -72,6 +72,7 @@ const toDashboardView = (dashboard: any) => {
       spinStatus: dashboard.dailySpin,
       quizStatus: dashboard.dailyQuiz,
       winnerNotice: dashboard.winnerNotice,
+      enteredDrawPrizeIds: dashboard.enteredDrawPrizeIds ?? [],
     },
     secondary: {
       recentTransactions: dashboard.recentTransactions ?? [],
@@ -86,7 +87,7 @@ export const appService = {
     const now = new Date();
     const [activeDraws, recentWinners, announcementRows] = await Promise.all([
       drawsService.listActive(now),
-      winnersService.list(),
+      winnersService.listLatestBySlots(),
       db
         .select({
           id: notifications.id,
@@ -103,9 +104,10 @@ export const appService = {
     return {
       critical: {
         heroDraws: activeDraws
-          .map((draw) => mapDrawCard(draw, now))
+          .flatMap((draw) => (draw.prizes || []).map((prize: any) => mapDrawCard(draw, prize, now)))
           .filter((draw) => Boolean(draw.coverImage)),
         announcements: announcementRows,
+        latestWinners: recentWinners.slice(0, 3),
       },
       secondary: {
         winnersPreview: recentWinners.slice(0, 4),
@@ -138,15 +140,21 @@ export const appService = {
         walletBalance: Number(dashboard.wallet?.balance ?? 0),
         spin: {
           spinCost: Number(spinStatus.spinCost ?? 0),
-          canSpin: Boolean(spinStatus.hasSpunToday === false),
+          canSpin: Boolean(spinStatus.canSpin),
           hasSpunToday: Boolean(spinStatus.hasSpunToday),
-          rewards: (spinStatus.rewards || []).map((reward: any, index: number) => ({
+          dailySpinLimit: Number(spinStatus.dailySpinLimit ?? 1),
+          paidSpinsUsed: Number(spinStatus.paidSpinsUsed ?? 0),
+          availableFreeSpins: Number(spinStatus.availableFreeSpins ?? 0),
+          remainingTotalSpins: Number(spinStatus.remainingTotalSpins ?? 0),
+          rewards: (spinStatus.rewards || [])
+            .filter((reward: any) => reward.isActive)
+            .map((reward: any, index: number) => ({
             id: reward.id,
             label: reward.label,
             rewardType: reward.rewardType,
             rewardAmount: Number(reward.rewardAmount ?? 0),
             wheelSegment: index,
-          })),
+            })),
         },
         quiz: activeQuiz
           ? {
@@ -201,7 +209,9 @@ export const appService = {
         totals: {
           totalUsers: overview.totalUsers,
           pendingWalletDeposits: overview.pendingDeposits,
-          activeDraws: managedDraws.filter((draw) => !["closed", "deleted"].includes(draw.status)).length,
+          activeDraws: managedDraws.filter(
+            (draw) => (draw.prizes || []).some((prize: any) => !["closed", "filled", "completed"].includes(prize.urgencyStatus)),
+          ).length,
         },
         latestDeposits: deposits,
         drawSlots: [1, 2, 3].map((slotNumber) => {

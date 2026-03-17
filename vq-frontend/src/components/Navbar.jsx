@@ -16,7 +16,6 @@ const desktopAuthLinks = [
 function Navbar({
   currentPath,
   onNavigate,
-  onOpenInfo,
   notifications,
   notificationsUnreadCount,
   isNotificationsOpen,
@@ -24,8 +23,11 @@ function Navbar({
   onToggleNotifications,
   isAuthenticated,
   isAuthLoading,
+  isLoggingOut,
   onLogout,
 }) {
+  const showLogoutAction = isAuthenticated || isLoggingOut
+
   return (
     <header className="navbar">
       <button className="brand-link" type="button" onClick={() => onNavigate('/')}>
@@ -47,14 +49,42 @@ function Navbar({
             </button>
           ))}
           {!isAuthLoading
-            ? isAuthenticated
+            ? showLogoutAction
               ? (
                 <>
-                  <button type="button" className="nav-link nav-link-auth-mobile active" onClick={onLogout}>
-                    <span className="nav-link-label">Logout</span>
+                  <button
+                    type="button"
+                    className={`nav-link nav-link-auth-mobile active ${isLoggingOut ? 'is-loading' : ''}`}
+                    onClick={onLogout}
+                    disabled={isLoggingOut}
+                    aria-busy={isLoggingOut}
+                  >
+                    <span className="nav-link-label nav-link-loading-label">
+                      {isLoggingOut ? (
+                        <>
+                          <span className="btn-spinner nav-link-spinner" aria-hidden="true" />
+                          Logging out...
+                        </>
+                      ) : (
+                        'Logout'
+                      )}
+                    </span>
                   </button>
-                  <button type="button" className="nav-link nav-link-auth-desktop active" onClick={onLogout}>
-                    Logout
+                  <button
+                    type="button"
+                    className={`nav-link nav-link-auth-desktop active ${isLoggingOut ? 'is-loading' : ''}`}
+                    onClick={onLogout}
+                    disabled={isLoggingOut}
+                    aria-busy={isLoggingOut}
+                  >
+                    {isLoggingOut ? (
+                      <>
+                        <span className="btn-spinner nav-link-spinner" aria-hidden="true" />
+                        Logging out...
+                      </>
+                    ) : (
+                      'Logout'
+                    )}
                   </button>
                 </>
                 )
@@ -82,9 +112,6 @@ function Navbar({
             : null}
         </nav>
         <div className="nav-utility">
-          <button type="button" className="nav-info-trigger" onClick={onOpenInfo} aria-label="Platform information">
-            i
-          </button>
           <NotificationBell
             notifications={notifications}
             unreadCount={notificationsUnreadCount}

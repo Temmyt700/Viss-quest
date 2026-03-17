@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { formatCurrency } from '../utils/format'
 import { getDrawStatusLabel, isDrawEntryOpen } from '../utils/draws'
 import './EntryModal.css'
 
 function EntryModal({ draw, walletBalance, onClose, onConfirm, onFundWallet }) {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   if (!draw) return null
 
   const isLowBalance = walletBalance < draw.entryFee
@@ -37,8 +40,28 @@ function EntryModal({ draw, walletBalance, onClose, onConfirm, onFundWallet }) {
               Fund Wallet
             </button>
           ) : (
-            <button type="button" className="btn btn-primary" onClick={onConfirm}>
-              Confirm Entry
+            <button
+              type="button"
+              className={`btn btn-primary ${isSubmitting ? 'is-loading' : ''}`}
+              onClick={async () => {
+                setIsSubmitting(true)
+                try {
+                  await onConfirm()
+                } finally {
+                  setIsSubmitting(false)
+                }
+              }}
+              disabled={isSubmitting}
+              aria-busy={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <span className="btn-spinner" aria-hidden="true" />
+                  Confirming entry...
+                </>
+              ) : (
+                'Confirm Entry'
+              )}
             </button>
           )}
         </div>

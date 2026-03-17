@@ -19,7 +19,7 @@ function DrawDetailsModal({ draw, serverNow, onClose, onEnterDraw }) {
 
   if (!draw) return null
 
-  const canEnter = isDrawEntryOpen(draw.status)
+  const canEnter = isDrawEntryOpen(draw.status) && !draw.hasEntered
   const currentImage = images[activeImageIndex] || draw.image
 
   const showPrevious = () => {
@@ -90,6 +90,12 @@ function DrawDetailsModal({ draw, serverNow, onClose, onEnterDraw }) {
             <Timer endTime={draw.endTime} serverNow={serverNow} status={draw.status} />
           </div>
         </div>
+        {draw.status === 'winner_pending' ? (
+          <p className="result-muted">Winner announcement coming shortly.</p>
+        ) : null}
+        {draw.winnerReferenceId ? (
+          <p className="result-success">Winner: {draw.winnerReferenceId}</p>
+        ) : null}
         <p className="muted">{draw.description || 'This draw is live on VissQuest and uses automated winner selection.'}</p>
         <button
           type="button"
@@ -97,7 +103,7 @@ function DrawDetailsModal({ draw, serverNow, onClose, onEnterDraw }) {
           onClick={() => onEnterDraw(draw)}
           disabled={!canEnter}
         >
-          {canEnter ? 'Enter Draw' : 'Entries Closed'}
+          {draw.hasEntered ? 'Already Entered' : canEnter ? 'Enter Draw' : 'Entries Closed'}
         </button>
       </div>
     </div>

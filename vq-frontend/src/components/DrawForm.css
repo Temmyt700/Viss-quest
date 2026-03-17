@@ -4,6 +4,10 @@
   overflow: hidden;
 }
 
+.draw-form label {
+  min-width: 0;
+}
+
 .draw-image-grid,
 .draw-image-field {
   min-width: 0;
@@ -19,11 +23,23 @@
   min-width: 0;
   width: 100%;
   appearance: auto;
+  min-height: 46px;
+  padding-right: 2.8rem;
+  background-color: #fff;
 }
 
 .draw-form input[type='datetime-local']::-webkit-calendar-picker-indicator {
   opacity: 1;
   cursor: pointer;
+  margin-left: 0.5rem;
+}
+
+.date-time-field {
+  position: relative;
+}
+
+.date-time-field input[type='datetime-local'] {
+  overflow: hidden;
 }
 
 .draw-slot-history {
@@ -41,5 +57,12 @@
 @media (min-width: 900px) {
   .draw-form {
     align-content: start;
+  }
+}
+
+@media (max-width: 900px) {
+  .draw-image-grid,
+  .draw-form .grid.two {
+    grid-template-columns: 1fr;
   }
 }

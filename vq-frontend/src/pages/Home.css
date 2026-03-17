@@ -16,6 +16,38 @@
   align-items: center;
 }
 
+.winners-carousel {
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.winners-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.winners-carousel-track {
+  display: flex;
+  gap: 10px;
+  width: max-content;
+}
+
+.winner-carousel-item {
+  width: min(372px, 80vw);
+  flex: 0 0 auto;
+}
+
+@media (max-width: 720px) {
+  .winners-carousel-track {
+    gap: 10px;
+  }
+
+  .winner-carousel-item {
+    width: min(306px, 84vw);
+  }
+}
+
 .celebration-layer {
   position: fixed;
   inset: 0;
@@ -27,11 +59,29 @@
   backdrop-filter: blur(3px);
 }
 
+.celebration-layer.celebration-winner-preview,
+.celebration-layer.celebration-winner-login {
+  background: rgba(27, 13, 48, 0.28);
+}
+
 .confetti-field {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
+}
+
+.confetti-field.winner-confetti .confetti-piece {
+  background: linear-gradient(180deg, #ff5b7f, #ffd84d 38%, #4dd5ff 68%, #8b5dff);
+  width: 14px;
+  height: 28px;
+  animation: confettiBurst var(--duration) ease-out infinite;
+  box-shadow: 0 12px 24px rgba(71, 18, 122, 0.26);
+}
+
+.celebration-layer.celebration-winner-login .confetti-field.winner-confetti .confetti-piece {
+  width: 16px;
+  height: 32px;
 }
 
 .confetti-piece {
@@ -60,6 +110,13 @@
     #fff;
 }
 
+.celebration-layer.celebration-winner-preview .celebration-card,
+.celebration-layer.celebration-winner-login .celebration-card {
+  background:
+    radial-gradient(circle at top, rgba(255, 216, 77, 0.28), transparent 45%),
+    linear-gradient(160deg, rgba(255, 245, 205, 0.96), rgba(255, 255, 255, 0.98));
+}
+
 .celebration-copy {
   margin: 0.4rem 0 0.9rem;
   color: var(--green-800);
@@ -76,6 +133,20 @@
   }
   100% {
     transform: translate3d(22px, 110vh, 0) rotate(320deg);
+    opacity: 0;
+  }
+}
+
+@keyframes confettiBurst {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.55) rotate(0deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(calc(92px - var(--x)), 108vh, 0) scale(1.24) rotate(900deg);
     opacity: 0;
   }
 }

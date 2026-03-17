@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import {
   drawEntries,
@@ -6,7 +6,6 @@ import {
   notifications,
   quizAttempts,
   quizzes,
-  spinHistory,
   users,
   walletTransactions,
   wallets,
@@ -14,7 +13,9 @@ import {
 } from "../../db/schema/index.js";
 import { notificationsService } from "../notifications/notifications.service.js";
 import { referralsService } from "../referrals/referrals.service.js";
-import { getUtcDayStart, isSameUtcDay } from "../../utils/time.js";
+import { spinService } from "../spin/spin.service.js";
+import { winnersService } from "../winners/winners.service.js";
+import { getUtcDayStart } from "../../utils/time.js";
 
 export const usersService = {
   async getMe(userId: string) {
@@ -39,13 +40,14 @@ export const usersService = {
       recentTransactions,
       referralSummary,
       unreadNotificationRows,
-      latestSpinRows,
+      spinStatus,
       activeQuizRows,
+      latestWin,
     ] = await Promise.all([
       db.select().from(users).where(eq(users.id, userId)).limit(1),
       db.select().from(wallets).where(eq(wallets.userId, userId)).limit(1),
       db.select().from(drawEntries).where(eq(drawEntries.userId, userId)).orderBy(desc(drawEntries.createdAt)).limit(10),
-      db.select().from(winners).where(eq(winners.userId, userId)).orderBy(desc(winners.announcedAt)),
+      db.select().from(winners).where(and(eq(winners.userId, userId), isNotNull(winners.announcedAt))).orderBy(desc(winners.announcedAt)),
       db.select().from(walletTransactions).where(eq(walletTransactions.userId, userId)).orderBy(desc(walletTransactions.createdAt)).limit(10),
       referralsService.getSummary(userId),
       db
@@ -57,20 +59,20 @@ export const usersService = {
             eq(notifications.isRead, false),
           ),
         ),
-      db.select().from(spinHistory).where(eq(spinHistory.userId, userId)).orderBy(desc(spinHistory.spinDate)).limit(1),
+      spinService.getStatus(userId),
       db
         .select()
         .from(quizzes)
         .where(and(eq(quizzes.isActive, true), lte(quizzes.activeFrom, now)))
         .orderBy(desc(quizzes.activeFrom), desc(quizzes.createdAt))
         .limit(1),
+      winnersService.getLatestWinForUser(userId),
     ]);
 
     const [user] = userRows;
     const [wallet] = walletRows;
     const prizeIds = entryRows.map((entry) => entry.drawPrizeId);
     const [activeQuiz] = activeQuizRows;
-    const [latestSpin] = latestSpinRows;
     const [{ unreadCount = 0 } = { unreadCount: 0 }] = unreadNotificationRows;
     const [activeQuizAttempt] = activeQuiz
       ? await db
@@ -91,8 +93,16 @@ export const usersService = {
         ...entry,
         prizeTitle: prizesById.get(entry.drawPrizeId)?.title ?? "Unknown Prize",
       })),
-      winnerNotice: winRows.length > 0
-        ? "You have won a prize. Please submit your testimonial and proof once you receive your prize."
+      enteredDrawPrizeIds: [...new Set(entryRows.map((entry) => entry.drawPrizeId))],
+      winnerNotice: latestWin
+        ? {
+            winnerId: latestWin.id,
+            prizeTitle: latestWin.prizeTitle,
+            referenceId: latestWin.referenceId,
+            slotNumber: latestWin.slotNumber,
+            announcedAt: latestWin.announcedAt,
+            message: "Congratulations! You won this draw!",
+          }
         : null,
       recentTransactions,
       referralSummary,
@@ -100,8 +110,12 @@ export const usersService = {
         unreadCount: Number(unreadCount ?? 0),
       },
       dailySpin: {
-        canSpin: latestSpin ? !isSameUtcDay(new Date(latestSpin.spinDate), now) : true,
-        hasSpunToday: latestSpin ? isSameUtcDay(new Date(latestSpin.spinDate), now) : false,
+        canSpin: Boolean(spinStatus.canSpin),
+        hasSpunToday: Boolean(spinStatus.hasSpunToday),
+        dailySpinLimit: spinStatus.dailySpinLimit,
+        paidSpinsUsed: spinStatus.paidSpinsUsed,
+        availableFreeSpins: spinStatus.availableFreeSpins,
+        remainingTotalSpins: spinStatus.remainingTotalSpins,
       },
       dailyQuiz: {
         hasActiveQuiz: Boolean(activeQuiz),

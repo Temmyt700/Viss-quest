@@ -20,7 +20,7 @@ export const updateSpinSettingsSchema = z.object({
 export const updateSpinRewardSchema = z.object({
   body: z.object({
     label: z.string().min(1).optional(),
-    rewardType: z.enum(["cash", "free_entry", "none"]).optional(),
+    rewardType: z.enum(["cash", "free_entry", "none", "try_again"]).optional(),
     rewardAmount: z.coerce.number().nonnegative().optional(),
     maxDailyWinners: z.coerce.number().int().positive().optional(),
     isActive: z.boolean().optional(),

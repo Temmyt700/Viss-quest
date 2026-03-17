@@ -11,7 +11,10 @@ function Wallet({
   onCloseFunding,
   onSubmitFunding,
   banks,
+  isBanksLoading,
+  banksError,
   supportContact,
+  onRetryBanks,
 }) {
   return (
     <section className="stack-lg">
@@ -47,9 +50,12 @@ function Wallet({
         isOpen={isFundingOpen}
         user={user}
         banks={banks}
+        isBanksLoading={isBanksLoading}
+        banksError={banksError}
         supportContact={supportContact}
         onClose={onCloseFunding}
         onSubmit={onSubmitFunding}
+        onRetryBanks={onRetryBanks}
       />
     </section>
   )
