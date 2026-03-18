@@ -1,9 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './AdminDeposits.css'
 
 function AdminDeposits({ deposits, onApprove, onReject }) {
   const [busyDepositId, setBusyDepositId] = useState(null)
   const [busyAction, setBusyAction] = useState('')
+  const [visibleCount, setVisibleCount] = useState(10)
+
+  useEffect(() => {
+    setVisibleCount(10)
+  }, [deposits])
 
   const runDepositAction = async (depositId, action, handler) => {
     if (busyDepositId) return
@@ -18,6 +23,9 @@ function AdminDeposits({ deposits, onApprove, onReject }) {
     }
   }
 
+  const visibleDeposits = deposits.slice(0, visibleCount)
+  const hasMore = deposits.length > visibleCount
+
   return (
     <section className="stack-lg">
       <header className="card">
@@ -25,7 +33,7 @@ function AdminDeposits({ deposits, onApprove, onReject }) {
         <p className="muted">Review pending requests and keep recent approved or rejected deposits visible for audit.</p>
       </header>
       <div className="deposit-list">
-        {deposits.length ? deposits.map((deposit) => (
+        {visibleDeposits.length ? visibleDeposits.map((deposit) => (
           <article key={deposit.id} className="card deposit-card">
             <div className="row spread">
               <div>
@@ -78,6 +86,16 @@ function AdminDeposits({ deposits, onApprove, onReject }) {
           </article>
         )}
       </div>
+      {hasMore ? (
+        <div className="row spread">
+          <span className="muted">
+            Showing {visibleDeposits.length} of {deposits.length} deposits
+          </span>
+          <button type="button" className="btn btn-soft" onClick={() => setVisibleCount((prev) => prev + 10)}>
+            Load More Deposits
+          </button>
+        </div>
+      ) : null}
     </section>
   )
 }

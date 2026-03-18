@@ -1,6 +1,6 @@
 import './Notifications.css'
 
-function Notifications({ notifications }) {
+function Notifications({ notifications, hasMore, onLoadMore, isLoadingMore }) {
   return (
     <section className="stack-lg">
       <header className="card">
@@ -18,6 +18,19 @@ function Notifications({ notifications }) {
           </article>
         ))}
       </div>
+      {hasMore ? (
+        <div className="row spread">
+          <span className="muted">Showing {notifications.length} notifications</span>
+          <button
+            type="button"
+            className={`btn btn-soft ${isLoadingMore ? 'is-loading' : ''}`}
+            onClick={onLoadMore}
+            disabled={isLoadingMore}
+          >
+            {isLoadingMore ? 'Loading...' : 'Load More Notifications'}
+          </button>
+        </div>
+      ) : null}
     </section>
   )
 }

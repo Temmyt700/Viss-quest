@@ -21,6 +21,7 @@ function DrawDetailsModal({ draw, serverNow, onClose, onEnterDraw }) {
 
   const canEnter = isDrawEntryOpen(draw.status) && !draw.hasEntered
   const currentImage = images[activeImageIndex] || draw.image
+  const drawWinners = draw.winners || []
 
   const showPrevious = () => {
     setActiveImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1))
@@ -93,7 +94,26 @@ function DrawDetailsModal({ draw, serverNow, onClose, onEnterDraw }) {
         {draw.status === 'winner_pending' ? (
           <p className="result-muted">Winner announcement coming shortly.</p>
         ) : null}
-        {draw.winnerReferenceId ? (
+        {drawWinners.length ? (
+          <section className="draw-winners-section stack">
+            <div className="row spread">
+              <div>
+                <p className="eyebrow">Winners For This Draw</p>
+                <h4>{drawWinners.length} winner{drawWinners.length > 1 ? 's' : ''}</h4>
+              </div>
+              <span className="status-pill">{draw.slotNumber ? `Slot ${draw.slotNumber}` : 'Draw Winners'}</span>
+            </div>
+            <div className="draw-winner-list">
+              {drawWinners.map((winner) => (
+                <article key={winner.id} className="draw-winner-item">
+                  <strong>{winner.referenceId}</strong>
+                  <span>{winner.drawTitle || draw.title}</span>
+                  <small>{winner.date}</small>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : draw.winnerReferenceId ? (
           <p className="result-success">Winner: {draw.winnerReferenceId}</p>
         ) : null}
         <p className="muted">{draw.description || 'This draw is live on VissQuest and uses automated winner selection.'}</p>

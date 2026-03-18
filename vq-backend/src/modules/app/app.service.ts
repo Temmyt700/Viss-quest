@@ -9,7 +9,12 @@ import { spinService } from "../spin/spin.service.js";
 import { usersService } from "../users/users.service.js";
 import { winnersService } from "../winners/winners.service.js";
 
-const mapDrawCard = (draw: any, prize: any, now: Date) => ({
+const TERMINAL_DRAW_STATES = ["closed", "winner_pending", "winner_announced", "completed"] as const;
+
+const mapDrawCard = (draw: any, prize: any, now: Date, drawWinners: any[] = []) => {
+  const effectiveStatus = TERMINAL_DRAW_STATES.includes(draw.status) ? draw.status : (prize.urgencyStatus ?? draw.status);
+
+  return {
   id: prize.id,
   drawId: draw.id,
   slotNumber: draw.slotNumber,
@@ -20,9 +25,10 @@ const mapDrawCard = (draw: any, prize: any, now: Date) => ({
   entryFee: Number(prize.entryFee ?? 0),
   entryFeeText: `NGN ${Number(prize.entryFee ?? 0).toLocaleString()}`,
   prizeValue: Number(prize.prizeValue ?? 0),
-  status: prize.urgencyStatus ?? draw.status,
-  statusLabel: String(prize.urgencyStatus ?? draw.status ?? "available").replaceAll("_", " "),
-  canEnter: !["filled", "closed", "completed"].includes(prize.urgencyStatus ?? draw.status),
+  winnerCountSetting: Number(prize.winnerCount ?? 1),
+  status: effectiveStatus,
+  statusLabel: String(effectiveStatus ?? "available").replaceAll("_", " "),
+  canEnter: !["filled", "closed", "winner_pending", "winner_announced", "completed"].includes(effectiveStatus),
   startTime: prize.startTime ?? draw.startTime,
   endTime: prize.endTime ?? draw.endTime,
   countdownTarget: prize.endTime ?? draw.endTime ?? null,
@@ -33,7 +39,12 @@ const mapDrawCard = (draw: any, prize: any, now: Date) => ({
   goLiveMode: draw.goLiveMode,
   drawDay: draw.drawDay,
   serverNow: now.toISOString(),
-});
+  winners: drawWinners,
+  winnerCount: drawWinners.length,
+  winnerReferenceIds: drawWinners.map((winner: any) => winner.referenceId),
+  winnerReferenceId: drawWinners[0]?.referenceId ?? null,
+  };
+};
 
 const toDashboardView = (dashboard: any) => {
   const latestNotifications = (dashboard.latestNotifications || []).slice(0, 3).map((item: any) => ({
@@ -100,17 +111,27 @@ export const appService = {
         .orderBy(desc(notifications.createdAt))
         .limit(3),
     ]);
+    const activeDrawWinners = await winnersService.listByDrawIds(activeDraws.map((draw) => draw.id));
+    const drawWinnersByDrawId = new Map<string, any[]>();
+
+    for (const winner of activeDrawWinners) {
+      const slotWinners = drawWinnersByDrawId.get(winner.drawId) ?? [];
+      slotWinners.push(winner);
+      drawWinnersByDrawId.set(winner.drawId, slotWinners);
+    }
 
     return {
       critical: {
         heroDraws: activeDraws
-          .flatMap((draw) => (draw.prizes || []).map((prize: any) => mapDrawCard(draw, prize, now)))
+          .flatMap((draw) =>
+            (draw.prizes || []).map((prize: any) => mapDrawCard(draw, prize, now, drawWinnersByDrawId.get(draw.id) ?? [])),
+          )
           .filter((draw) => Boolean(draw.coverImage)),
         announcements: announcementRows,
-        latestWinners: recentWinners.slice(0, 3),
+        latestWinners: recentWinners,
       },
       secondary: {
-        winnersPreview: recentWinners.slice(0, 4),
+        winnersPreview: recentWinners,
       },
       serverNow: now.toISOString(),
     };
@@ -119,12 +140,12 @@ export const appService = {
   async getDashboard(userId: string) {
     const [dashboard, latestNotifications] = await Promise.all([
       usersService.getDashboard(userId),
-      notificationsService.list(userId),
+      notificationsService.list(userId, { limit: 5, offset: 0 }),
     ]);
 
     return toDashboardView({
       ...dashboard,
-      latestNotifications,
+      latestNotifications: latestNotifications.items,
     });
   },
 

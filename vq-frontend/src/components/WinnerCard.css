@@ -23,11 +23,21 @@
   gap: 0.5rem;
   padding: 0.72rem 0.85rem 0.72rem 0.92rem;
   background:
-    radial-gradient(circle at top left, rgba(135, 224, 207, 0.42), transparent 34%),
-    radial-gradient(circle at bottom right, rgba(124, 199, 184, 0.24), transparent 38%),
-    linear-gradient(135deg, rgba(228, 249, 244, 0.98), rgba(212, 241, 234, 0.98) 48%, rgba(236, 252, 247, 0.98));
-  border-color: #94cfc0;
-  box-shadow: 0 14px 28px rgba(15, 95, 82, 0.14);
+    radial-gradient(circle at 12% 16%, rgba(255, 255, 255, 0.58), transparent 22%),
+    radial-gradient(circle at 88% 18%, rgba(255, 203, 112, 0.34), transparent 34%),
+    radial-gradient(circle at 82% 78%, rgba(255, 147, 188, 0.22), transparent 32%),
+    linear-gradient(135deg, rgba(255, 244, 212, 0.99), rgba(255, 226, 197, 0.98) 42%, rgba(255, 229, 242, 0.98));
+  border-color: #f1b57d;
+  box-shadow: 0 16px 30px rgba(175, 98, 34, 0.18);
+}
+
+.winner-card-homepage.winner-card-button {
+  background:
+    radial-gradient(circle at 12% 16%, rgba(255, 255, 255, 0.58), transparent 22%),
+    radial-gradient(circle at 88% 18%, rgba(255, 203, 112, 0.34), transparent 34%),
+    radial-gradient(circle at 82% 78%, rgba(255, 147, 188, 0.22), transparent 32%),
+    linear-gradient(135deg, rgba(255, 244, 212, 0.99), rgba(255, 226, 197, 0.98) 42%, rgba(255, 229, 242, 0.98));
+  border-color: #f1b57d;
 }
 
 .winner-card-homepage::before {
@@ -35,7 +45,18 @@
   position: absolute;
   inset: 0 auto 0 0;
   width: 10px;
-  background: linear-gradient(180deg, #1d7b72, #59b7a6);
+  background: linear-gradient(180deg, #ef7c56, #f1b456 62%, #f49fc0);
+}
+
+.winner-card-homepage::after {
+  content: '';
+  position: absolute;
+  inset: auto 1rem 0.85rem auto;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.36), rgba(255, 255, 255, 0));
+  pointer-events: none;
 }
 
 .winner-card-homepage .winner-image {
@@ -53,21 +74,27 @@
 
 .winner-card-homepage .winner-copy {
   gap: 0.4rem;
+  position: relative;
+  z-index: 1;
 }
 
 .winner-card-homepage h3 {
   font-size: 1.1rem;
-  color: #0f5f57;
+  color: #893b16;
 }
 
 .winner-card-homepage .eyebrow {
-  color: #1a7467;
+  color: #c15a33;
   font-size: 0.7rem;
 }
 
 .winner-card-homepage .winner-meta-label {
-  color: #46716a;
+  color: #8a5a55;
   font-size: 0.68rem;
+}
+
+.winner-card-homepage strong {
+  color: #6f3243;
 }
 
 .winner-image {

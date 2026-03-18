@@ -2,7 +2,7 @@ import { and, desc, eq, gte, inArray, isNull, lte, ne } from "drizzle-orm";
 import { env } from "../../config/env.js";
 import { db } from "../../db/client.js";
 import { drawEntries, drawPrizeImages, drawPrizes, draws, notifications, users, winners } from "../../db/schema/index.js";
-import { pickRandomItem } from "../../utils/random.js";
+import { pickRandomItems } from "../../utils/random.js";
 import { getUtcWeekStart } from "../../utils/time.js";
 import { notificationsService } from "../notifications/notifications.service.js";
 
@@ -32,6 +32,22 @@ const mapWinnerRecords = (
     };
   });
 
+const hydrateWinnerRows = async (winnerRows: Array<typeof winners.$inferSelect>) => {
+  if (!winnerRows.length) {
+    return [];
+  }
+
+  const drawIds = [...new Set(winnerRows.map((item) => item.drawId))];
+  const prizeIds = [...new Set(winnerRows.map((item) => item.drawPrizeId))];
+  const [drawRows, prizeRows, imageRows] = await Promise.all([
+    db.select().from(draws).where(inArray(draws.id, drawIds)),
+    db.select().from(drawPrizes).where(inArray(drawPrizes.id, prizeIds)),
+    db.select().from(drawPrizeImages).where(inArray(drawPrizeImages.drawPrizeId, prizeIds)),
+  ]);
+
+  return mapWinnerRecords(winnerRows, drawRows, prizeRows, imageRows);
+};
+
 export const winnersService = {
   async list() {
     const winnerRows = await db
@@ -41,19 +57,7 @@ export const winnersService = {
       .orderBy(desc(winners.selectedAt));
 
     const announced = winnerRows.filter((winner) => winner.announcedAt);
-    if (!announced.length) {
-      return [];
-    }
-
-    const drawIds = [...new Set(announced.map((item) => item.drawId))];
-    const prizeIds = [...new Set(announced.map((item) => item.drawPrizeId))];
-    const [drawRows, prizeRows, imageRows] = await Promise.all([
-      db.select().from(draws).where(inArray(draws.id, drawIds)),
-      db.select().from(drawPrizes).where(inArray(drawPrizes.id, prizeIds)),
-      db.select().from(drawPrizeImages).where(inArray(drawPrizeImages.drawPrizeId, prizeIds)),
-    ]);
-
-    return mapWinnerRecords(announced, drawRows, prizeRows, imageRows);
+    return hydrateWinnerRows(announced);
   },
 
   async listPending() {
@@ -63,26 +67,37 @@ export const winnersService = {
       .where(isNull(winners.announcedAt))
       .orderBy(desc(winners.selectedAt));
 
-    if (!pendingRows.length) {
+    return hydrateWinnerRows(pendingRows);
+  },
+
+  async listByDrawIds(drawIds: string[], { includePending = false } = {}) {
+    if (!drawIds.length) {
       return [];
     }
 
-    const drawIds = [...new Set(pendingRows.map((item) => item.drawId))];
-    const prizeIds = [...new Set(pendingRows.map((item) => item.drawPrizeId))];
-    const [drawRows, prizeRows, imageRows] = await Promise.all([
-      db.select().from(draws).where(inArray(draws.id, drawIds)),
-      db.select().from(drawPrizes).where(inArray(drawPrizes.id, prizeIds)),
-      db.select().from(drawPrizeImages).where(inArray(drawPrizeImages.drawPrizeId, prizeIds)),
-    ]);
+    const winnerRows = await db
+      .select()
+      .from(winners)
+      .where(inArray(winners.drawId, drawIds))
+      .orderBy(desc(winners.selectedAt));
 
-    return mapWinnerRecords(pendingRows, drawRows, prizeRows, imageRows);
+    const filteredRows = includePending ? winnerRows : winnerRows.filter((winner) => winner.announcedAt);
+    return hydrateWinnerRows(filteredRows);
   },
 
   async listLatestBySlots() {
     const announced = await this.list();
-    return [1, 2, 3]
-      .map((slotNumber) => announced.find((winner) => winner.slotNumber === slotNumber))
-      .filter(Boolean);
+    const latestDrawIdsBySlot = new Map<number, string>();
+
+    // Each slot can now surface many winners. "Latest winners" means all
+    // winners tied to the most recently announced draw currently visible for
+    // that slot, not just the first winner row in that slot.
+    for (const winner of announced) {
+      if (!winner.slotNumber || latestDrawIdsBySlot.has(winner.slotNumber)) continue;
+      latestDrawIdsBySlot.set(winner.slotNumber, winner.drawId);
+    }
+
+    return announced.filter((winner) => winner.slotNumber && latestDrawIdsBySlot.get(winner.slotNumber) === winner.drawId);
   },
 
   async selectForDraw(drawId: string, { forceReselect = false } = {}) {
@@ -101,9 +116,14 @@ export const winnersService = {
         throw new Error("Draw prize not found.");
       }
 
-      const [existingWinner] = await tx.select().from(winners).where(eq(winners.drawPrizeId, prize.id)).limit(1);
-      if (existingWinner && !forceReselect) {
-        return existingWinner;
+      const existingWinners = await tx
+        .select()
+        .from(winners)
+        .where(eq(winners.drawPrizeId, prize.id))
+        .orderBy(desc(winners.selectedAt));
+      const winnerCount = Math.max(1, prize.winnerCount ?? 1);
+      if (existingWinners.length >= winnerCount && !forceReselect) {
+        return existingWinners;
       }
 
       const entries = await tx
@@ -117,7 +137,7 @@ export const winnersService = {
           .update(draws)
           .set({ status: "closed", updatedAt: new Date() })
           .where(eq(draws.id, drawId));
-        return null;
+        return [];
       }
 
       const selectedAt = new Date();
@@ -129,34 +149,34 @@ export const winnersService = {
       const weeklyWinnerIds = new Set(recentWeeklyWinners.map((winner) => winner.userId));
       const eligibleEntries = entries.filter((entry) => !weeklyWinnerIds.has(entry.userId));
 
-      // Each entry is one chance, but users who already won this week are
-      // excluded first. If every entrant already won this week, we fall back to
-      // the full pool so the draw can still complete instead of stalling.
-      const selectedEntry = pickRandomItem(eligibleEntries.length ? eligibleEntries : entries);
+      // Multi-winner draws are selected without replacement. Weekly winners are
+      // preferred out of the pool first, then any remaining winner slots fall
+      // back to the broader entry pool so the draw can still complete cleanly.
+      const targetWinnerCount = Math.min(winnerCount, entries.length);
+      const selectedEntries = pickRandomItems(eligibleEntries, targetWinnerCount);
+      if (selectedEntries.length < targetWinnerCount) {
+        const alreadySelected = new Set(selectedEntries.map((entry) => entry.id));
+        const fallbackEntries = entries.filter((entry) => !alreadySelected.has(entry.id));
+        selectedEntries.push(...pickRandomItems(fallbackEntries, targetWinnerCount - selectedEntries.length));
+      }
 
-      if (existingWinner) {
-        await tx
-          .update(winners)
-          .set({
-            userId: selectedEntry.userId,
-            referenceId: selectedEntry.referenceId,
-            entryId: selectedEntry.id,
+      if (existingWinners.length) {
+        await tx.delete(winners).where(eq(winners.drawPrizeId, prize.id));
+      }
+
+      if (selectedEntries.length) {
+        await tx.insert(winners).values(
+          selectedEntries.map((entry) => ({
+            drawId,
+            drawPrizeId: prize.id,
+            userId: entry.userId,
+            referenceId: entry.referenceId,
+            entryId: entry.id,
             prizeTitle: prize.title,
             selectedAt,
             announcedAt: null,
-          })
-          .where(eq(winners.id, existingWinner.id));
-      } else {
-        await tx.insert(winners).values({
-          drawId,
-          drawPrizeId: prize.id,
-          userId: selectedEntry.userId,
-          referenceId: selectedEntry.referenceId,
-          entryId: selectedEntry.id,
-          prizeTitle: prize.title,
-          selectedAt,
-          announcedAt: null,
-        });
+          })),
+        );
       }
 
       await tx
@@ -164,8 +184,7 @@ export const winnersService = {
         .set({ status: "winner_pending", updatedAt: new Date() })
         .where(eq(draws.id, drawId));
 
-      const [winner] = await tx.select().from(winners).where(eq(winners.drawPrizeId, prize.id)).limit(1);
-      return winner ?? null;
+      return tx.select().from(winners).where(eq(winners.drawPrizeId, prize.id)).orderBy(desc(winners.selectedAt));
     });
   },
 
@@ -175,13 +194,12 @@ export const winnersService = {
     }
 
     return db.transaction(async (tx) => {
-      const [winner] = await tx
+      const pendingWinners = await tx
         .select()
         .from(winners)
-        .where(and(eq(winners.drawId, drawId), isNull(winners.announcedAt)))
-        .limit(1);
+        .where(and(eq(winners.drawId, drawId), isNull(winners.announcedAt)));
 
-      if (!winner) {
+      if (!pendingWinners.length) {
         throw new Error("Pending winner not found.");
       }
 
@@ -189,7 +207,7 @@ export const winnersService = {
       await tx
         .update(winners)
         .set({ announcedAt })
-        .where(eq(winners.id, winner.id));
+        .where(and(eq(winners.drawId, drawId), isNull(winners.announcedAt)));
 
       await tx
         .update(draws)
@@ -197,29 +215,35 @@ export const winnersService = {
         .where(eq(draws.id, drawId));
 
       if (await notificationsService.isEventEnabled("prizeWon", tx)) {
-        await tx.insert(notifications).values({
-          userId: winner.userId,
-          title: "You won a draw",
-          message: `Congratulations. Your reference ID ${winner.referenceId} won ${winner.prizeTitle}.`,
-          type: "winner_announced",
-        });
+        await tx.insert(notifications).values(
+          pendingWinners.map((winner) => ({
+            userId: winner.userId,
+            title: "You won a draw",
+            message: `Congratulations. Your reference ID ${winner.referenceId} won ${winner.prizeTitle}.`,
+            type: "winner_announced",
+          })),
+        );
       }
 
-      return { success: true, winnerId: winner.id };
+      return { success: true, winnerIds: pendingWinners.map((winner) => winner.id) };
     });
   },
 
   async announceDuePending(now = new Date()) {
     const pendingRows = await db.select().from(winners).where(isNull(winners.announcedAt));
-    const dueWinners = pendingRows.filter((winner) => getAnnouncementReadyAt(winner.selectedAt) <= now);
+    const dueDrawIds = [...new Set(
+      pendingRows
+        .filter((winner) => getAnnouncementReadyAt(winner.selectedAt) <= now)
+        .map((winner) => winner.drawId),
+    )];
 
     // The suspense window is enforced here so draws can close immediately, keep
     // the winner hidden for a short period, then announce automatically.
-    for (const winner of dueWinners) {
-      await this.announceWinner(winner.drawId);
+    for (const drawId of dueDrawIds) {
+      await this.announceWinner(drawId);
     }
 
-    return { processed: dueWinners.length };
+    return { processed: dueDrawIds.length };
   },
 
   async rerunSelection(drawId: string) {

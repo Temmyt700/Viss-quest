@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNull, or } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { notificationSettings, notifications, users } from "../../db/schema/index.js";
 
@@ -11,19 +11,36 @@ const defaultSettings = {
 };
 
 export const notificationsService = {
-  async list(userId: string) {
+  async list(userId: string, { limit = 20, offset = 0 } = {}) {
     const [user] = await db.select({ createdAt: users.createdAt }).from(users).where(eq(users.id, userId)).limit(1);
+    const visibilityFilter = or(
+      eq(notifications.userId, userId),
+      and(isNull(notifications.userId), user?.createdAt ? gte(notifications.createdAt, user.createdAt) : isNull(notifications.userId)),
+    );
 
-    return db
-      .select()
-      .from(notifications)
-      .where(
-        or(
-          eq(notifications.userId, userId),
-          and(isNull(notifications.userId), user?.createdAt ? gte(notifications.createdAt, user.createdAt) : isNull(notifications.userId)),
-        ),
-      )
-      .orderBy(desc(notifications.createdAt));
+    const [items, [totalRow], [unreadRow]] = await Promise.all([
+      db
+        .select()
+        .from(notifications)
+        .where(visibilityFilter)
+        .orderBy(desc(notifications.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db.select({ total: count() }).from(notifications).where(visibilityFilter),
+      db
+        .select({ total: count() })
+        .from(notifications)
+        .where(and(visibilityFilter, eq(notifications.isRead, false))),
+    ]);
+
+    const total = Number(totalRow?.total ?? 0);
+    return {
+      items,
+      total,
+      unreadCount: Number(unreadRow?.total ?? 0),
+      hasMore: offset + items.length < total,
+      nextOffset: offset + items.length,
+    };
   },
 
   async getSettings(client: any = db): Promise<NotificationSettingsRow> {

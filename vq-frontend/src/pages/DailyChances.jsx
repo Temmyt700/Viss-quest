@@ -20,7 +20,11 @@ function DailyChances({
 
   return (
     <section className="stack-lg">
-      <header className="card">
+      <header className="card daily-chances-hero">
+        <div className="daily-chances-badges" aria-hidden="true">
+          <span className="daily-chances-badge">Play Today</span>
+          <span className="daily-chances-badge daily-chances-badge-soft">Spin + Quiz</span>
+        </div>
         <h1>Daily Chances</h1>
         <p className="muted">Use Daily Spin and Daily Quiz in one place.</p>
       </header>
@@ -44,7 +48,7 @@ function DailyChances({
 
       {activeTab === 'spin' ? (
         <section className="stack">
-          <section className="card">
+          <section className="card spin-summary-card">
             {isLoading ? (
               <div className="stack">
                 <div className="skeleton-line skeleton-line-title" />
@@ -52,9 +56,11 @@ function DailyChances({
               </div>
             ) : (
               <>
-                <p className="muted">Wallet Balance: {formatCurrency(walletBalance)}</p>
                 <p className="muted">
-                  Spin cost: {formatCurrency(spinCost)}. Paid spins left today: {spinState.remainingTotalSpins}.
+                  <strong>Wallet Balance:</strong> {formatCurrency(walletBalance)}
+                </p>
+                <p className="muted">
+                  <strong>Spin Cost:</strong> {formatCurrency(spinCost)}. Paid spins left today: {spinState.remainingTotalSpins}.
                   {spinState.availableFreeSpins > 0 ? ` Free spins available now: ${spinState.availableFreeSpins}.` : ''}
                 </p>
               </>
@@ -89,7 +95,7 @@ function DailyChances({
       ) : (
         <section className="stack">
           <QuizCard quiz={quiz} state={quizState} onSubmit={onSubmitAnswer} isLoading={isLoading} />
-          <section className="card">
+          <section className="card quiz-status-card">
             <h3>Today&apos;s Quiz Status</h3>
             <p className="muted">{quizState.answered ? 'Answered' : 'Not answered yet'}</p>
             <h3>Reward Earned Today</h3>

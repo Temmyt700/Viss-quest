@@ -65,6 +65,57 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.draw-winners-section {
+  padding: 1rem;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(135, 224, 207, 0.25), transparent 30%),
+    linear-gradient(145deg, rgba(228, 249, 244, 0.94), rgba(244, 253, 250, 0.98));
+  border: 1px solid #c7e1da;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.draw-winner-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.draw-winner-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.2rem 0.8rem;
+  align-items: center;
+  padding: 0.82rem 0.9rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(148, 207, 192, 0.48);
+}
+
+.draw-winner-item strong {
+  color: #0f5f57;
+  font-size: 1rem;
+}
+
+.draw-winner-item span {
+  color: var(--muted);
+}
+
+.draw-winner-item small {
+  justify-self: end;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .draw-winner-item {
+    grid-template-columns: 1fr;
+  }
+
+  .draw-winner-item small {
+    justify-self: start;
+  }
+}
+
 @media (max-width: 640px) {
   .draw-details-grid {
     grid-template-columns: 1fr;

@@ -30,6 +30,7 @@ export const drawPrizes = pgTable("draw_prizes", {
   imageUrl: text("image_url"),
   imagePublicId: text("image_public_id"),
   maxEntries: integer("max_entries").notNull(),
+  winnerCount: integer("winner_count").notNull().default(1),
   currentEntries: integer("current_entries").notNull().default(0),
   urgencyStatus: text("urgency_status").notNull().default("available"),
   manualStatusOverride: text("manual_status_override"),

@@ -10,6 +10,7 @@ const buildDrawForm = (draw) => ({
   entryFee: String(draw.entryFee || ''),
   prizeValue: String(draw.prizeValue || ''),
   maxEntries: String(draw.maxEntries || ''),
+  winnerCount: String(draw.winnerCount || 1),
   drawDay: draw.drawDay || 'Monday',
   goLiveMode: draw.goLiveMode || 'instant',
   scheduledAt: draw.startTime ? new Date(draw.startTime).toISOString().slice(0, 16) : '',
@@ -265,6 +266,16 @@ function AdminDashboard({
                   type="number"
                   value={drawForm.maxEntries}
                   onChange={(event) => setDrawForm((prev) => ({ ...prev, maxEntries: event.target.value }))}
+                />
+              </label>
+              <label>
+                Number Of Winners
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={drawForm.winnerCount}
+                  onChange={(event) => setDrawForm((prev) => ({ ...prev, winnerCount: event.target.value }))}
                 />
               </label>
               <label>

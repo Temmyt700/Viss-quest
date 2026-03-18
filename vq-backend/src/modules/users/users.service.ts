@@ -128,6 +128,6 @@ export const usersService = {
   },
 
   async getNotifications(userId: string) {
-    return notificationsService.list(userId);
+    return notificationsService.list(userId, { limit: 20, offset: 0 });
   },
 };

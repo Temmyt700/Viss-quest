@@ -14,6 +14,7 @@ type DrawPrizeInput = {
   imageUrl?: string;
   imageUrls?: string[];
   maxEntries: number;
+  winnerCount: number;
 };
 
 type CreateDrawInput = {
@@ -33,6 +34,7 @@ type UpdateDrawInput = {
   imageUrl?: string;
   imageUrls?: string[];
   maxEntries: number;
+  winnerCount: number;
   drawDay: string;
   goLiveMode: "instant" | "schedule";
   startTime?: string;
@@ -59,6 +61,7 @@ const mapDrawRows = (
         ...prize,
         entryFee: toNumber(prize.entryFee),
         prizeValue: toNumber(prize.prizeValue),
+        winnerCount: prize.winnerCount ?? 1,
         images: imageRows
           .filter((image) => image.drawPrizeId === prize.id)
           .sort((left, right) => left.sortOrder - right.sortOrder)
@@ -281,6 +284,7 @@ export const drawsService = {
           imageUrl: imagePayloads[0]?.imageUrl ?? null,
           imagePublicId: imagePayloads[0]?.imagePublicId ?? null,
           maxEntries: prize.maxEntries,
+          winnerCount: prize.winnerCount,
           currentEntries: 0,
           urgencyStatus: drawStatus === "closed" ? "closed" : "available",
           startTime,
@@ -380,6 +384,7 @@ export const drawsService = {
           imageUrl: nextImages[0]?.imageUrl ?? null,
           imagePublicId: nextImages[0]?.imagePublicId ?? null,
           maxEntries: input.maxEntries,
+          winnerCount: input.winnerCount,
           startTime,
           endTime,
           urgencyStatus: nextDrawStatus === "closed" ? "closed" : effectiveStatus,

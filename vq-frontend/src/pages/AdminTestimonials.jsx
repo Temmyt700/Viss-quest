@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import TestimonialCard from '../components/TestimonialCard'
 
 function AdminTestimonials({ testimonials, onUpdateTestimonial, onDeleteTestimonial, onViewImages }) {
@@ -6,6 +6,11 @@ function AdminTestimonials({ testimonials, onUpdateTestimonial, onDeleteTestimon
   const [draft, setDraft] = useState({ prizeTitle: '', message: '', winningDate: '', imageFiles: [] })
   const [busyId, setBusyId] = useState('')
   const [loadingEditId, setLoadingEditId] = useState('')
+  const [visibleCount, setVisibleCount] = useState(9)
+
+  useEffect(() => {
+    setVisibleCount(9)
+  }, [testimonials])
 
   const openEdit = (testimonial) => {
     setLoadingEditId(testimonial.id)
@@ -19,6 +24,9 @@ function AdminTestimonials({ testimonials, onUpdateTestimonial, onDeleteTestimon
     window.setTimeout(() => setLoadingEditId(''), 250)
   }
 
+  const visibleTestimonials = testimonials.slice(0, visibleCount)
+  const hasMore = testimonials.length > visibleCount
+
   return (
     <section className="stack-lg">
       <header className="card">
@@ -26,7 +34,7 @@ function AdminTestimonials({ testimonials, onUpdateTestimonial, onDeleteTestimon
         <p className="muted">Review, edit, or remove winner testimonials when moderation is needed.</p>
       </header>
       <div className="grid three">
-        {testimonials.map((testimonial) => (
+        {visibleTestimonials.map((testimonial) => (
           <div key={testimonial.id} className="card stack">
             <TestimonialCard testimonial={testimonial} onViewImages={onViewImages} />
             <div className="row">
@@ -57,6 +65,16 @@ function AdminTestimonials({ testimonials, onUpdateTestimonial, onDeleteTestimon
           </div>
         ))}
       </div>
+      {hasMore ? (
+        <div className="row spread">
+          <span className="muted">
+            Showing {visibleTestimonials.length} of {testimonials.length} testimonials
+          </span>
+          <button type="button" className="btn btn-soft" onClick={() => setVisibleCount((prev) => prev + 9)}>
+            Load More Testimonials
+          </button>
+        </div>
+      ) : null}
 
       {editingId ? (
         <div className="modal-overlay" role="dialog" aria-modal="true">

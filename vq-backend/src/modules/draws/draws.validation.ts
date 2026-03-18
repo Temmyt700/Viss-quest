@@ -20,6 +20,7 @@ const drawPrizeSchema = z.object({
     z.array(z.string().url()).max(3).optional(),
   ),
   maxEntries: z.coerce.number().int().positive(),
+  winnerCount: z.coerce.number().int().min(1).max(50),
 });
 
 export const enterDrawSchema = z.object({
@@ -83,6 +84,7 @@ export const updateDrawSchema = z.object({
       z.array(z.string().url()).max(3).optional(),
     ),
     maxEntries: z.coerce.number().int().positive(),
+    winnerCount: z.coerce.number().int().min(1).max(50),
     drawDay: z.string().min(3),
     goLiveMode: z.enum(["instant", "schedule"]),
     startTime: optionalIsoDate,

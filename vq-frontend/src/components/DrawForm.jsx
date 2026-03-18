@@ -7,6 +7,7 @@ const emptyFormState = {
   entryFee: '',
   prizeValue: '',
   maxEntries: '',
+  winnerCount: '1',
   manualStatus: 'Available',
   imageUrl: '',
   galleryImageUrls: '',
@@ -169,6 +170,17 @@ function DrawForm({ index, existingDraw, onConfirmSlot }) {
             placeholder="200"
             value={formState.maxEntries}
             onChange={(event) => updateField('maxEntries', event.target.value)}
+          />
+        </label>
+        <label>
+          Number Of Winners
+          <input
+            type="number"
+            min="1"
+            max="50"
+            placeholder="1"
+            value={formState.winnerCount}
+            onChange={(event) => updateField('winnerCount', event.target.value)}
           />
         </label>
         <label>

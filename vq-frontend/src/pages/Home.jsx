@@ -37,6 +37,10 @@ function Home({ draws, winners, serverNow, onViewDraw, onEnterDraw, celebration,
   return (
     <section className="stack-lg">
       <section className="hero card">
+        <div className="hero-badges" aria-hidden="true">
+          <span className="hero-badge">It could be you</span>
+          <span className="hero-badge hero-badge-soft">May luck find you</span>
+        </div>
         <p className="eyebrow">VissQuest</p>
         <h1>Take Chances, Get Lucky, Win Big</h1>
         <p className="muted">
@@ -45,8 +49,12 @@ function Home({ draws, winners, serverNow, onViewDraw, onEnterDraw, celebration,
         </p>
       </section>
       <section className="stack">
-        <div className="section-head">
-          <h2>Active Prize Draws</h2>
+        <div className="section-head section-head-playful">
+          <div>
+            <p className="home-section-kicker">Lucky Now</p>
+            <h2>Active Prize Draws</h2>
+          </div>
+          <p className="home-section-caption">Fresh chances, clean odds, and bright prize energy.</p>
         </div>
         <div className="grid three">
           {isLoading
@@ -72,8 +80,12 @@ function Home({ draws, winners, serverNow, onViewDraw, onEnterDraw, celebration,
         </div>
       </section>
       <section className="stack">
-        <div className="section-head">
-          <h2>Latest Winners</h2>
+        <div className="section-head section-head-playful">
+          <div>
+            <p className="home-section-kicker">Feel the win</p>
+            <h2>Latest Winners</h2>
+          </div>
+          <p className="home-section-caption">A moving stream of recent lucky moments.</p>
         </div>
         {winners.length ? (
           <div
@@ -104,8 +116,8 @@ function Home({ draws, winners, serverNow, onViewDraw, onEnterDraw, celebration,
             </div>
           </div>
         ) : (
-          <article className="card">
-            <p className="muted">Latest winners will appear here as soon as the next draw is announced.</p>
+          <article className="card happy-empty-card">
+            <p className="muted">Fresh winners will slide in here as soon as the next lucky draw is announced.</p>
           </article>
         )}
       </section>

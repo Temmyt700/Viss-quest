@@ -1,15 +1,29 @@
-import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { testimonialImages, testimonials, users, winners } from "../../db/schema/index.js";
 import { destroyCloudinaryAsset, uploadBufferToCloudinary } from "../../utils/upload.js";
 
 export const testimonialsService = {
-  async list() {
-    const items = await db.select().from(testimonials).orderBy(desc(testimonials.createdAt));
-    const images = await db.select().from(testimonialImages);
+  async list({ limit, offset = 0 }: { limit?: number; offset?: number } = {}) {
+    const itemsQuery = db.select().from(testimonials).orderBy(desc(testimonials.createdAt));
+    const items = typeof limit === "number"
+      ? await itemsQuery.limit(limit).offset(offset)
+      : await itemsQuery;
+    const testimonialIds = items.map((item) => item.id);
+    const images = testimonialIds.length
+      ? await db.select().from(testimonialImages).where(inArray(testimonialImages.testimonialId, testimonialIds))
+      : [];
+    const imagesByTestimonialId = new Map<string, Array<typeof testimonialImages.$inferSelect>>();
+
+    for (const image of images) {
+      const bucket = imagesByTestimonialId.get(image.testimonialId) ?? [];
+      bucket.push(image);
+      imagesByTestimonialId.set(image.testimonialId, bucket);
+    }
+
     return items.map((item) => ({
       ...item,
-      images: images.filter((image) => image.testimonialId === item.id),
+      images: imagesByTestimonialId.get(item.id) ?? [],
     }));
   },
 

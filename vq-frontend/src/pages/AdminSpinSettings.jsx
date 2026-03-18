@@ -13,6 +13,8 @@ function AdminSpinSettings({ spinSettings, onSaveSettings, onSaveReward }) {
   const [savingRewardId, setSavingRewardId] = useState('')
   const [settingsSaved, setSettingsSaved] = useState(false)
   const [savedRewardId, setSavedRewardId] = useState('')
+  const [settingsError, setSettingsError] = useState('')
+  const [rewardError, setRewardError] = useState({ id: '', message: '' })
 
   useEffect(() => {
     setSettingsForm({
@@ -24,7 +26,19 @@ function AdminSpinSettings({ spinSettings, onSaveSettings, onSaveReward }) {
     setRewardDrafts(spinSettings.rewards)
     setSettingsSaved(false)
     setSavedRewardId('')
+    setSettingsError('')
+    setRewardError({ id: '', message: '' })
   }, [spinSettings])
+
+  const sanitizeNonNegative = (value) => {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+  }
+
+  const sanitizePositiveInteger = (value) => {
+    const parsed = Number(value)
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+  }
 
   const updateSetting = (field, value) => {
     setSettingsForm((prev) => ({ ...prev, [field]: Number(value) }))
@@ -39,11 +53,26 @@ function AdminSpinSettings({ spinSettings, onSaveSettings, onSaveReward }) {
   const handleSaveSettings = async () => {
     if (isSavingSettings) return
 
+    const payload = {
+      spinCost: sanitizeNonNegative(settingsForm.spinCost),
+      maxDailyPayout: sanitizeNonNegative(settingsForm.maxDailyPayout),
+      maxSingleReward: sanitizeNonNegative(settingsForm.maxSingleReward),
+      dailySpinLimit: sanitizePositiveInteger(settingsForm.dailySpinLimit),
+    }
+
+    if (Object.values(payload).some((value) => value === null)) {
+      setSettingsError('Please enter valid numbers before saving the spin rules.')
+      return
+    }
+
+    setSettingsError('')
     setIsSavingSettings(true)
     try {
-      await onSaveSettings(settingsForm)
+      await onSaveSettings(payload)
       setSettingsSaved(true)
       window.setTimeout(() => setSettingsSaved(false), 1500)
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : 'Unable to save the spin rules right now.')
     } finally {
       setIsSavingSettings(false)
     }
@@ -52,13 +81,37 @@ function AdminSpinSettings({ spinSettings, onSaveSettings, onSaveReward }) {
   const handleSaveReward = async (rewardId, reward) => {
     if (savingRewardId) return
 
+    const payload = {
+      label: String(reward.label || '').trim(),
+      rewardType: reward.rewardType || reward.type || 'none',
+      rewardAmount: sanitizeNonNegative(reward.rewardAmount ?? reward.amount),
+      maxDailyWinners: sanitizePositiveInteger(reward.maxDailyWinners || 1),
+      isActive: Boolean(reward.isActive),
+    }
+
+    if (!payload.label) {
+      setRewardError({ id: rewardId, message: 'Reward label cannot be empty.' })
+      return
+    }
+
+    if (payload.rewardAmount === null || payload.maxDailyWinners === null) {
+      setRewardError({ id: rewardId, message: 'Reward amount and max daily winners must be valid numbers.' })
+      return
+    }
+
+    setRewardError({ id: '', message: '' })
     setSavingRewardId(rewardId)
     try {
-      await onSaveReward(rewardId, reward)
+      await onSaveReward(rewardId, payload)
       setSavedRewardId(rewardId)
       window.setTimeout(() => {
         setSavedRewardId((current) => (current === rewardId ? '' : current))
       }, 1500)
+    } catch (error) {
+      setRewardError({
+        id: rewardId,
+        message: error instanceof Error ? error.message : 'Unable to save this reward right now.',
+      })
     } finally {
       setSavingRewardId('')
     }
@@ -123,6 +176,7 @@ function AdminSpinSettings({ spinSettings, onSaveSettings, onSaveReward }) {
             />
           </label>
         </div>
+        {settingsError ? <p className="form-error">{settingsError}</p> : null}
       </section>
 
       <section className="card stack">
@@ -186,6 +240,7 @@ function AdminSpinSettings({ spinSettings, onSaveSettings, onSaveReward }) {
               >
                 {savingRewardId === reward.id ? 'Saving...' : savedRewardId === reward.id ? 'Saved' : 'Save Reward'}
               </button>
+              {rewardError.id === reward.id ? <p className="form-error">{rewardError.message}</p> : null}
             </article>
           ))}
         </div>

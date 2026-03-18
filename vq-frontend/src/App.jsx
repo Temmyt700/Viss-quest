@@ -140,6 +140,7 @@ const mapManagedDrawForHome = (draw) => ({
   status: draw.status,
   currentEntries: draw.currentEntries || 0,
   maxEntries: draw.maxEntries || 0,
+  winnerCount: Number(draw.winnerCount || 1),
   startTime: draw.startTime,
   endTime: draw.endTime,
   drawRef: draw.drawRef,
@@ -181,6 +182,8 @@ function App() {
   const [notifications, setNotifications] = useState([])
   const [notificationsUnreadCount, setNotificationsUnreadCount] = useState(0)
   const [isNotificationsLoading, setIsNotificationsLoading] = useState(false)
+  const [isNotificationsLoadingMore, setIsNotificationsLoadingMore] = useState(false)
+  const [notificationsHasMore, setNotificationsHasMore] = useState(false)
   const [depositRequests, setDepositRequests] = useState([])
   const [isFundingOpen, setIsFundingOpen] = useState(false)
   const [entryDraw, setEntryDraw] = useState(null)
@@ -395,13 +398,15 @@ function App() {
         drawRef: draw.drawRef,
         image: draw.coverImage,
         status: draw.status,
+        winners: mapWinners(draw.winners || []),
+        winnerCount: Number(draw.winnerCount || 0),
+        winnerReferenceIds: draw.winnerReferenceIds || [],
+        winnerReferenceId: draw.winnerReferenceId || null,
       })),
     )
     setServerNow(payload?.serverNow ? new Date(payload.serverNow).getTime() : Date.now())
     const latestWinners = payload?.critical?.latestWinners || payload?.secondary?.winnersPreview || []
-    if (latestWinners.length) {
-      setWinners(mapWinners(latestWinners))
-    }
+    setWinners(mapWinners(latestWinners))
   }, [])
 
   const syncManagedDrawLocally = useCallback((drawPayload) => {
@@ -424,7 +429,7 @@ function App() {
       const nextPublicDraw = mapManagedDrawForHome(nextManagedDraw)
       const isEligibleForHome =
         Boolean(nextPublicDraw.image) &&
-        !['closed', 'deleted', 'winner_pending', 'winner_announced', 'completed'].includes(nextPublicDraw.status)
+        nextPublicDraw.status !== 'deleted'
 
       const withoutSlot = prev.filter((item) => item.slotNumber !== nextPublicDraw.slotNumber && item.id !== nextPublicDraw.id)
       if (!isEligibleForHome) {
@@ -480,6 +485,7 @@ function App() {
     setTransactions([])
     setNotifications([])
     setNotificationsUnreadCount(0)
+    setNotificationsHasMore(false)
     setDepositRequests([])
     setAdminOverview({
       totalUsers: 0,
@@ -541,6 +547,7 @@ function App() {
     })
     setTransactions(mapTransactions(secondary.recentTransactions || []))
     setNotificationsUnreadCount(Number(critical.notifications?.unreadCount || 0))
+    setNotificationsHasMore(false)
     if ((critical.notifications?.latest || []).length) {
       setNotifications(mapNotifications(critical.notifications.latest))
     }
@@ -798,19 +805,39 @@ function App() {
     await Promise.allSettled(tasks)
   }, [authUser?.role, isAuthenticated, loadAdminData, loadPublicData, refreshSession])
 
-  const refreshNotifications = useCallback(async () => {
+  const refreshNotifications = useCallback(async ({ append = false } = {}) => {
     if (!isAuthenticated) return
 
-    setIsNotificationsLoading(true)
-    try {
-      const notificationsResponse = await apiRequest('/api/notifications')
-      const nextNotifications = mapNotifications(notificationsResponse.notifications || notificationsResponse)
-      setNotifications(nextNotifications)
-      setNotificationsUnreadCount(nextNotifications.filter((item) => !item.isRead).length)
-    } finally {
-      setIsNotificationsLoading(false)
+    if (append) {
+      setIsNotificationsLoadingMore(true)
+    } else {
+      setIsNotificationsLoading(true)
     }
-  }, [isAuthenticated])
+    try {
+      const offset = append ? notifications.length : 0
+      const notificationsResponse = await apiRequest(`/api/notifications?limit=15&offset=${offset}`)
+      const nextNotifications = mapNotifications(notificationsResponse.notifications || notificationsResponse)
+      setNotifications((prev) => (append ? [...prev, ...nextNotifications] : nextNotifications))
+      setNotificationsUnreadCount(
+        Number(
+          notificationsResponse.unreadCount ??
+            (append ? notificationsUnreadCount : nextNotifications.filter((item) => !item.isRead).length),
+        ),
+      )
+      setNotificationsHasMore(Boolean(notificationsResponse.hasMore))
+    } finally {
+      if (append) {
+        setIsNotificationsLoadingMore(false)
+      } else {
+        setIsNotificationsLoading(false)
+      }
+    }
+  }, [isAuthenticated, notifications.length, notificationsUnreadCount])
+
+  const loadMoreNotifications = useCallback(async () => {
+    if (!isAuthenticated || isNotificationsLoadingMore || !notificationsHasMore) return
+    await refreshNotifications({ append: true })
+  }, [isAuthenticated, isNotificationsLoadingMore, notificationsHasMore, refreshNotifications])
 
   const markNotificationsSeen = useCallback(async () => {
     if (!isAuthenticated) return
@@ -1780,6 +1807,7 @@ function App() {
           imageUrl: formState.imageUrl || undefined,
           imageUrls: galleryImageUrls,
           maxEntries: Number(formState.maxEntries),
+          winnerCount: Number(formState.winnerCount || 1),
         },
       ]),
     )
@@ -1814,6 +1842,7 @@ function App() {
     formData.append('imageUrl', formState.imageUrl || '')
     formData.append('imageUrls', JSON.stringify(galleryImageUrls))
     formData.append('maxEntries', String(Number(formState.maxEntries)))
+    formData.append('winnerCount', String(Number(formState.winnerCount || 1)))
     formData.append('drawDay', formState.drawDay)
     formData.append('goLiveMode', formState.goLiveMode)
     formData.append('status', formState.status || 'available')
@@ -1918,20 +1947,41 @@ function App() {
       })
       if (response?.settings) {
         setSpinSettings(mapSpinSettings(response.settings))
+        setSpinState((prev) => ({
+          ...prev,
+          dailySpinLimit: Number(response.settings.dailySpinLimit || prev.dailySpinLimit || 1),
+        }))
       }
-      void refreshAfterMutation({ includeAdmin: true, includeSession: false })
     } catch (error) {
       showAppError(error)
+      throw error
     }
   }
 
   const handleUpdateSpinReward = async (rewardId, updates) => {
     try {
+      const sanitizedUpdates = {
+        label: typeof updates.label === 'string' ? updates.label.trim() : undefined,
+        rewardType: updates.rewardType || updates.type || undefined,
+        rewardAmount:
+          typeof updates.rewardAmount === 'number'
+            ? updates.rewardAmount
+            : typeof updates.amount === 'number'
+              ? updates.amount
+              : undefined,
+        maxDailyWinners:
+          typeof updates.maxDailyWinners === 'number'
+            ? updates.maxDailyWinners
+            : undefined,
+        isActive: typeof updates.isActive === 'boolean' ? updates.isActive : undefined,
+      }
       const response = await apiRequest(`/api/spin/rewards/${rewardId}`, {
         method: 'PATCH',
-        body: updates,
+        body: sanitizedUpdates,
       })
       if (response?.reward) {
+        // Reward settings now return the updated row, so we keep the admin
+        // screen in sync locally instead of reloading unrelated app surfaces.
         setSpinSettings((prev) => ({
           ...prev,
           rewards: prev.rewards.map((reward) =>
@@ -1948,9 +1998,9 @@ function App() {
           ),
         }))
       }
-      void refreshAfterMutation({ includeAdmin: true, includeSession: false })
     } catch (error) {
       showAppError(error)
+      throw error
     }
   }
 
@@ -2103,7 +2153,14 @@ function App() {
       case '/winners':
         return <Winners winners={winners} testimonials={testimonials} onViewTestimonialImages={handleViewTestimonialImages} onCelebrateWinner={handleCelebrateWinnerCard} />
       case '/notifications':
-        return <Notifications notifications={notifications} />
+        return (
+          <Notifications
+            notifications={notifications}
+            hasMore={notificationsHasMore}
+            onLoadMore={loadMoreNotifications}
+            isLoadingMore={isNotificationsLoadingMore}
+          />
+        )
       case '/terms':
         return <LegalPage title="Terms & Conditions" variant="terms" />
       case '/privacy':

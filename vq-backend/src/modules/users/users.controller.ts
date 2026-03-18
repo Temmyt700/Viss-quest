@@ -18,7 +18,13 @@ export const usersController = {
   },
 
   async notifications(req: Request, res: Response) {
-    const items = await usersService.getNotifications(req.authUser!.id);
-    res.status(200).json({ notifications: items });
+    const result = await usersService.getNotifications(req.authUser!.id);
+    res.status(200).json({
+      notifications: result.items,
+      total: result.total,
+      unreadCount: result.unreadCount,
+      hasMore: result.hasMore,
+      nextOffset: result.nextOffset,
+    });
   },
 };

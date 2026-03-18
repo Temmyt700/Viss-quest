@@ -1,8 +1,19 @@
+import { useEffect, useMemo, useState } from 'react'
 import './UserTable.css'
 
 function UserTable({ users, onViewUser, onBanToggle, onRoleChange }) {
+  const pageSize = 15
+  const [visibleCount, setVisibleCount] = useState(pageSize)
+
+  useEffect(() => {
+    setVisibleCount(pageSize)
+  }, [users])
+
+  const visibleUsers = useMemo(() => users.slice(0, visibleCount), [users, visibleCount])
+  const hasMore = users.length > visibleCount
+
   return (
-    <div className="table-wrap card">
+    <div className="table-wrap card stack">
       <table className="admin-table">
         <thead>
           <tr>
@@ -17,7 +28,7 @@ function UserTable({ users, onViewUser, onBanToggle, onRoleChange }) {
           </tr>
         </thead>
         <tbody>
-          {users.map((user) => (
+          {visibleUsers.map((user) => (
             <tr key={user.id}>
               <td>{user.fullName}</td>
               <td>{user.referenceId}</td>
@@ -45,6 +56,18 @@ function UserTable({ users, onViewUser, onBanToggle, onRoleChange }) {
           ))}
         </tbody>
       </table>
+      {(users.length > pageSize || hasMore) ? (
+        <div className="table-pagination">
+          <span className="muted">
+            Showing {Math.min(visibleCount, users.length)} of {users.length}
+          </span>
+          {hasMore ? (
+            <button type="button" className="btn btn-soft" onClick={() => setVisibleCount((prev) => prev + pageSize)}>
+              Load More Users
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   )
 }

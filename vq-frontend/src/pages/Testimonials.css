@@ -1,4 +1,60 @@
+.testimonials-hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(255, 229, 155, 0.34), transparent 24%),
+    radial-gradient(circle at 84% 18%, rgba(255, 179, 140, 0.26), transparent 26%),
+    linear-gradient(150deg, rgba(255, 251, 239, 0.99), rgba(255, 244, 231, 0.98) 46%, rgba(250, 255, 246, 0.98));
+  border-color: #efddb5;
+}
+
+.testimonials-hero-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.7rem;
+}
+
+.testimonials-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.34rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(232, 180, 94, 0.34);
+  color: #9b5a17;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.testimonials-hero-badge-soft {
+  color: #2f7c66;
+  border-color: rgba(116, 197, 171, 0.34);
+}
+
 .testimonial-form {
   display: grid;
   gap: 0.9rem;
+}
+
+.testimonial-form-card {
+  background:
+    radial-gradient(circle at top right, rgba(255, 221, 158, 0.26), transparent 24%),
+    linear-gradient(150deg, rgba(255, 252, 241, 0.98), rgba(248, 255, 249, 0.98));
+  border-color: #efdfbf;
+}
+
+.testimonial-access-card {
+  background:
+    radial-gradient(circle at top right, rgba(255, 228, 175, 0.26), transparent 22%),
+    linear-gradient(145deg, rgba(255, 251, 242, 0.98), rgba(252, 255, 253, 0.98));
+}
+
+.testimonials-section-kicker {
+  margin-bottom: 0.22rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #d06a35;
 }

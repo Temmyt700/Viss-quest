@@ -72,13 +72,17 @@ function Testimonials({
 
   return (
     <section className="stack-lg">
-      <header className="card">
+      <header className="card testimonials-hero">
+        <div className="testimonials-hero-badges" aria-hidden="true">
+          <span className="testimonials-hero-badge">Proof From Winners</span>
+          <span className="testimonials-hero-badge testimonials-hero-badge-soft">Real Prize Moments</span>
+        </div>
         <h1>Winner Testimonials</h1>
         <p className="muted">Latest proof stays highlighted, while older testimonials move into a past testimonials archive.</p>
       </header>
 
       {access.canSubmit ? (
-        <form className="card testimonial-form" onSubmit={handleSubmit}>
+        <form className="card testimonial-form testimonial-form-card" onSubmit={handleSubmit}>
           <div className="grid two">
             <label>
               Winning Date
@@ -114,7 +118,7 @@ function Testimonials({
           </button>
         </form>
       ) : (
-        <section className="card">
+        <section className="card testimonial-access-card">
           <p className="muted">
             {access.canViewSubmission
               ? 'Your testimonial submission is unavailable until you win another draw.'
@@ -125,26 +129,36 @@ function Testimonials({
 
       <section className="stack">
         <div className="section-head">
-          <h2>Latest Winner Testimonials</h2>
+          <div>
+            <p className="testimonials-section-kicker">Latest Testimonials</p>
+            <h2>Fresh Proof From Winners</h2>
+          </div>
         </div>
-        <div className="grid three">
-          {latestTestimonials.map((testimonial) => (
-            <div key={testimonial.id} className="stack">
-              <TestimonialCard testimonial={testimonial} onViewImages={onViewImages} />
-              {testimonial.userId === currentUserId ? (
-                <button type="button" className="btn btn-soft" onClick={() => openEdit(testimonial)}>
-                  Edit Testimonial
-                </button>
-              ) : null}
-            </div>
-          ))}
-        </div>
+        {latestTestimonials.length ? (
+          <div className="grid three">
+            {latestTestimonials.map((testimonial) => (
+              <div key={testimonial.id} className="stack">
+                <TestimonialCard testimonial={testimonial} onViewImages={onViewImages} />
+                {testimonial.userId === currentUserId ? (
+                  <button type="button" className="btn btn-soft" onClick={() => openEdit(testimonial)}>
+                    Edit Testimonial
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <article className="card testimonial-access-card">
+            <p className="muted">Fresh winner proof will light up this section as soon as new testimonials come in.</p>
+          </article>
+        )}
       </section>
 
       <section className="card stack">
         <div className="row spread">
           <div>
-            <h2>Past Testimonials</h2>
+            <p className="testimonials-section-kicker">Past Testimonials</p>
+            <h2>Proof Archive</h2>
             <p className="muted">Older winner proofs are grouped here to keep the page clean as testimonials grow.</p>
           </div>
           <button type="button" className="btn btn-soft" onClick={() => setShowPastTestimonials((prev) => !prev)}>

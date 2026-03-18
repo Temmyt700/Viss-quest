@@ -1,0 +1,1 @@
+ALTER TABLE "draw_prizes" ADD COLUMN "winner_count" integer DEFAULT 1 NOT NULL;
