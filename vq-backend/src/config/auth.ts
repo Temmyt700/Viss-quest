@@ -5,6 +5,7 @@ import * as schema from "../db/schema/index.js";
 import { env } from "./env.js";
 import { logger } from "./logger.js";
 import { getDatabaseConnectivityMessage, isDatabaseConnectivityError } from "../utils/databaseConnectivity.js";
+import { getTrustedOrigins } from "../utils/origins.js";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -14,6 +15,7 @@ export const auth = betterAuth({
   }),
   baseURL: env.BETTER_AUTH_URL,
   secret: env.BETTER_AUTH_SECRET,
+  trustedOrigins: async (request) => getTrustedOrigins(request?.headers.get("origin")),
   emailAndPassword: {
     enabled: true,
   },

@@ -5,11 +5,13 @@ import { runDrawScheduler } from "./jobs/drawScheduler.js";
 import { runQuizScheduler } from "./jobs/quizScheduler.js";
 import { runWinnerSelection } from "./jobs/winnerSelection.js";
 import { getDatabaseConnectivityMessage, isDatabaseConnectivityError } from "./utils/databaseConnectivity.js";
+import { describeTrustedOrigins } from "./utils/origins.js";
 
 const app = createApp();
 
 app.listen(env.PORT, () => {
   logger.info(`VissQuest backend listening on port ${env.PORT}`);
+  logger.info(`Trusted frontend origins: ${describeTrustedOrigins()}`);
 });
 
 const runSchedulerCycle = async () => {

@@ -16,13 +16,19 @@ import { testimonialsRoutes } from "./modules/testimonials/testimonials.routes.j
 import { usersRoutes } from "./modules/users/users.routes.js";
 import { walletRoutes } from "./modules/wallet/wallet.routes.js";
 import { winnersRoutes } from "./modules/winners/winners.routes.js";
+import { isAllowedFrontendOrigin } from "./utils/origins.js";
 
 export const createApp = () => {
   const app = express();
+  // Render sits behind a reverse proxy in production. Trusting the proxy keeps
+  // forwarded protocol/origin handling accurate for auth and secure requests.
+  app.set("trust proxy", 1);
 
   app.use(
     cors({
-      origin: env.FRONTEND_URL,
+      origin(origin, callback) {
+        callback(isAllowedFrontendOrigin(origin) ? null : new Error("Origin not allowed by CORS"), true);
+      },
       credentials: true,
     }),
   );
