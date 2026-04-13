@@ -17,6 +17,11 @@
   gap: 1rem;
 }
 
+.site-footer-legal {
+  display: grid;
+  gap: 0.45rem;
+}
+
 .site-footer-guides {
   display: grid;
   gap: 0.9rem;

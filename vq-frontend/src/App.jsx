@@ -15,6 +15,9 @@ import DailyChances from './pages/DailyChances'
 import Winners from './pages/Winners'
 import Notifications from './pages/Notifications'
 import Testimonials from './pages/Testimonials'
+import AboutPage from './pages/AboutPage'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminBanks from './pages/AdminBanks'
 import AdminCreateDraw from './pages/AdminCreateDraw'
@@ -1086,7 +1089,7 @@ function App() {
   }, [banks.length, banksError, isBanksLoading, isFundingOpen, path, refreshBanks])
 
   useEffect(() => {
-    const needsWinnerData = path === '/winners' || path === '/testimonials' || path === '/admin/winners'
+    const needsWinnerData = path === '/winners' || path === '/testimonials' || path === '/about' || path === '/admin/winners'
     if (!needsWinnerData) return
 
     // Winners/testimonials pages should refresh on navigation so new winner
@@ -1279,10 +1282,40 @@ function App() {
   const handleSignup = async (formState) => {
     await apiRequest('/api/auth/register', {
       method: 'POST',
-      body: formState,
+      body: {
+        ...formState,
+        callbackURL: `${window.location.origin}/login?verified=1`,
+      },
     })
-    await refreshSession()
-    navigate('/dashboard')
+    setAppFeedback({
+      type: 'success',
+      message: 'Account created. Please check your email and verify your account before signing in.',
+    })
+    navigate('/login')
+  }
+
+  const handleForgotPassword = async ({ email, redirectTo }) => {
+    await apiRequest('/api/auth/forgot-password', {
+      method: 'POST',
+      body: { email, redirectTo },
+    })
+  }
+
+  const handleResetPassword = async ({ token, newPassword }) => {
+    await apiRequest('/api/auth/reset-password', {
+      method: 'POST',
+      body: { token, newPassword },
+    })
+  }
+
+  const handleResendVerification = async (email) => {
+    await apiRequest('/api/auth/resend-verification', {
+      method: 'POST',
+      body: {
+        email,
+        callbackURL: `${window.location.origin}/login?verified=1`,
+      },
+    })
   }
 
   const handleLogout = async () => {
@@ -2071,7 +2104,14 @@ function App() {
     const isProtectedPath = protectedUserPaths.includes(path)
 
     if (!isAuthenticated && !isAuthLoading && isProtectedPath) {
-      return <Login onGoSignup={() => navigate('/signup')} onLogin={handleLogin} />
+      return (
+        <Login
+          onGoSignup={() => navigate('/signup')}
+          onGoForgotPassword={() => navigate('/forgot-password')}
+          onLogin={handleLogin}
+          onResendVerification={handleResendVerification}
+        />
+      )
     }
 
     if (path.startsWith('/admin') && !isAuthLoading && !isAdmin) {
@@ -2099,9 +2139,20 @@ function App() {
           />
         )
       case '/login':
-        return <Login onGoSignup={() => navigate('/signup')} onLogin={handleLogin} />
+        return (
+          <Login
+            onGoSignup={() => navigate('/signup')}
+            onGoForgotPassword={() => navigate('/forgot-password')}
+            onLogin={handleLogin}
+            onResendVerification={handleResendVerification}
+          />
+        )
       case '/signup':
         return <Signup onGoLogin={() => navigate('/login')} onSignup={handleSignup} />
+      case '/forgot-password':
+        return <ForgotPassword onBackToLogin={() => navigate('/login')} onSubmit={handleForgotPassword} />
+      case '/reset-password':
+        return <ResetPassword onBackToLogin={() => navigate('/login')} onSubmit={handleResetPassword} />
       case '/dashboard':
         return (
           <Dashboard
@@ -2152,6 +2203,14 @@ function App() {
         )
       case '/winners':
         return <Winners winners={winners} testimonials={testimonials} onViewTestimonialImages={handleViewTestimonialImages} onCelebrateWinner={handleCelebrateWinnerCard} />
+      case '/about':
+        return (
+          <AboutPage
+            testimonials={testimonials}
+            onViewTestimonialImages={handleViewTestimonialImages}
+            onNavigate={navigate}
+          />
+        )
       case '/notifications':
         return (
           <Notifications
@@ -2162,11 +2221,14 @@ function App() {
           />
         )
       case '/terms':
-        return <LegalPage title="Terms & Conditions" variant="terms" />
+      case '/terms-and-conditions':
+        return <LegalPage variant="terms" />
       case '/privacy':
-        return <LegalPage title="Privacy Policy" variant="privacy" />
+      case '/privacy-policy':
+        return <LegalPage variant="privacy" />
       case '/rules':
-        return <LegalPage title="Rules" variant="rules" />
+      case '/disclaimer':
+        return <LegalPage variant="disclaimer" />
       case '/testimonials':
         return (
           <Testimonials

@@ -19,6 +19,11 @@ const envSchema = z.object({
   CLOUDINARY_API_KEY: z.string().min(1),
   CLOUDINARY_API_SECRET: z.string().min(1),
   FRONTEND_URL: z.string().url(),
+  TELEGRAM_BOT_TOKEN: z.string().optional().default(""),
+  TELEGRAM_CHAT_ID: z.string().optional().default(""),
+  ZEPTO_MAIL_API_KEY: z.string().optional().default(""),
+  ZEPTO_MAIL_FROM_EMAIL: z.string().optional().default(""),
+  ZEPTO_MAIL_FROM_NAME: z.string().optional().default("VissQuest"),
   WINNER_ANNOUNCEMENT_DELAY_MINUTES: z.coerce.number().int().min(5).max(15).default(10),
 });
 

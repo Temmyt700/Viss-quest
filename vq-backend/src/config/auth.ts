@@ -6,6 +6,8 @@ import { env } from "./env.js";
 import { logger } from "./logger.js";
 import { getDatabaseConnectivityMessage, isDatabaseConnectivityError } from "../utils/databaseConnectivity.js";
 import { getTrustedOrigins } from "../utils/origins.js";
+import { communicationsService } from "../services/communications/communications.service.js";
+import { runNonBlocking } from "../utils/backgroundTask.js";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -16,8 +18,34 @@ export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
   secret: env.BETTER_AUTH_SECRET,
   trustedOrigins: async (request) => getTrustedOrigins(request?.headers.get("origin")),
+  advanced: {
+    backgroundTasks: {
+      handler: (promise) => runNonBlocking("Better Auth background task", promise),
+    },
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    sendOnSignIn: true,
+    autoSignInAfterVerification: false,
+    async sendVerificationEmail({ user, url }) {
+      communicationsService.sendVerificationEmail(
+        { email: user.email, name: user.name },
+        url,
+      );
+    },
+  },
   emailAndPassword: {
     enabled: true,
+    requireEmailVerification: true,
+    autoSignIn: false,
+    resetPasswordTokenExpiresIn: 60 * 60,
+    revokeSessionsOnPasswordReset: true,
+    async sendResetPassword({ user, url }) {
+      communicationsService.sendPasswordResetEmail(
+        { email: user.email, name: user.name },
+        url,
+      );
+    },
   },
   socialProviders: {
     google: {

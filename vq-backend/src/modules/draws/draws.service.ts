@@ -5,6 +5,7 @@ import { getAutomatedStatus } from "../../utils/drawLogic.js";
 import { toNumber } from "../../utils/money.js";
 import { destroyCloudinaryAsset, uploadBufferToCloudinary } from "../../utils/upload.js";
 import { winnersService } from "../winners/winners.service.js";
+import { communicationsService } from "../../services/communications/communications.service.js";
 
 type DrawPrizeInput = {
   title: string;
@@ -432,7 +433,7 @@ export const drawsService = {
   },
 
   async enter(drawId: string, drawPrizeId: string, userId: string) {
-    return db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       const [prize] = await tx
         .select()
         .from(drawPrizes)
@@ -514,8 +515,24 @@ export const drawsService = {
         await tx.update(draws).set({ status: "closed", updatedAt: new Date() }).where(eq(draws.id, drawId));
       }
 
-      return { success: true, shouldPickWinner: nextEntries >= prize.maxEntries };
+      return {
+        success: true,
+        shouldPickWinner: nextEntries >= prize.maxEntries,
+        enteredUserId: userId,
+        drawTitle: prize.title,
+        entryFee: fee,
+      };
     });
+
+    void communicationsService.sendDrawEntryConfirmationEmail(
+      result.enteredUserId,
+      result.drawTitle,
+      result.entryFee,
+    );
+    return {
+      success: result.success,
+      shouldPickWinner: result.shouldPickWinner,
+    };
   },
 
   async updateStatus(drawPrizeId: string, status: string) {

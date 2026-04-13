@@ -1,0 +1,77 @@
+.about-page {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.about-hero {
+  background: linear-gradient(135deg, rgba(223, 252, 234, 0.96), rgba(255, 247, 235, 0.98));
+  border: 1px solid #dbe9d8;
+}
+
+.about-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-bottom: 0.75rem;
+}
+
+.about-badge {
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(18, 92, 58, 0.08);
+  color: #17553a;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.about-badge-soft {
+  background: rgba(249, 168, 37, 0.14);
+  color: #8d5a0a;
+}
+
+.about-grid,
+.about-trust-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.about-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  color: #516355;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.about-trust {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 252, 247, 0.96));
+}
+
+.about-trust-card {
+  border: 1px solid #e2efe4;
+  border-radius: 18px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.about-trust-card h3,
+.about-cta h2 {
+  margin-top: 0;
+}
+
+.about-cta {
+  display: grid;
+  gap: 1rem;
+  align-items: center;
+  background: radial-gradient(circle at top right, rgba(251, 191, 36, 0.16), transparent 40%), linear-gradient(135deg, rgba(220, 252, 231, 0.95), rgba(255, 250, 240, 0.97));
+}
+
+@media (max-width: 760px) {
+  .about-grid,
+  .about-trust-grid {
+    grid-template-columns: 1fr;
+  }
+}

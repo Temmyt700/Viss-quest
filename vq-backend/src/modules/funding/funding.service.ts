@@ -5,6 +5,7 @@ import { toNumber } from "../../utils/money.js";
 import { uploadBufferToCloudinary } from "../../utils/upload.js";
 import { notificationsService } from "../notifications/notifications.service.js";
 import { referralsService } from "../referrals/referrals.service.js";
+import { communicationsService } from "../../services/communications/communications.service.js";
 
 export const fundingService = {
   async create(userId: string, amount: number, proofFile?: Express.Multer.File) {
@@ -43,7 +44,7 @@ export const fundingService = {
   },
 
   async approve(requestId: string, actorUserId: string) {
-    return db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       const [request] = await tx
         .select()
         .from(fundingRequests)
@@ -92,14 +93,35 @@ export const fundingService = {
         });
       }
 
-      await referralsService.processApprovedFunding(tx, request.userId, toNumber(request.amount));
+      const referralResult = await referralsService.processApprovedFunding(tx, request.userId, toNumber(request.amount));
 
-      return { success: true, fundingRequest: approvedRequest, walletBalance: nextBalance };
+      return {
+        success: true,
+        fundingRequest: approvedRequest,
+        walletBalance: nextBalance,
+        notifiedUserId: request.userId,
+        approvedAmount: toNumber(request.amount),
+        referralRewardedUserId: referralResult?.referrerUserId ?? null,
+        referralRewardAmount: referralResult?.rewardAmount ?? 0,
+      };
     });
+
+    void communicationsService.sendFundingApprovedEmail(result.notifiedUserId, result.approvedAmount);
+    if (result.referralRewardedUserId && result.referralRewardAmount) {
+      void communicationsService.sendReferralRewardEmail(
+        result.referralRewardedUserId,
+        result.referralRewardAmount,
+      );
+    }
+    return {
+      success: result.success,
+      fundingRequest: result.fundingRequest,
+      walletBalance: result.walletBalance,
+    };
   },
 
   async reject(requestId: string, actorUserId: string) {
-    return db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       const [request] = await tx
         .select()
         .from(fundingRequests)
@@ -138,7 +160,13 @@ export const fundingService = {
         type: "funding",
       });
 
-      return { success: true, fundingRequest: rejectedRequest };
+      return { success: true, fundingRequest: rejectedRequest, notifiedUserId: request.userId, rejectedAmount: toNumber(request.amount) };
     });
+
+    void communicationsService.sendFundingRejectedEmail(result.notifiedUserId, result.rejectedAmount);
+    return {
+      success: result.success,
+      fundingRequest: result.fundingRequest,
+    };
   },
 };

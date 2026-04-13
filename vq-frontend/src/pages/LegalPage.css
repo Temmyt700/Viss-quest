@@ -1,0 +1,23 @@
+.legal-page {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.legal-hero {
+  background: linear-gradient(135deg, rgba(223, 252, 234, 0.92), rgba(255, 249, 240, 0.96));
+  border: 1px solid #d8ecd8;
+}
+
+.legal-sections {
+  display: grid;
+  gap: 1rem;
+}
+
+.legal-section {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.legal-section h2 {
+  margin: 0;
+}

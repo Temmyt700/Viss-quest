@@ -5,6 +5,7 @@ import { drawEntries, drawPrizeImages, drawPrizes, draws, notifications, users, 
 import { pickRandomItems } from "../../utils/random.js";
 import { getUtcWeekStart } from "../../utils/time.js";
 import { notificationsService } from "../notifications/notifications.service.js";
+import { communicationsService } from "../../services/communications/communications.service.js";
 
 const getAnnouncementReadyAt = (selectedAt: Date) => new Date(selectedAt.getTime() + env.WINNER_ANNOUNCEMENT_DELAY_MINUTES * 60_000);
 
@@ -193,7 +194,7 @@ export const winnersService = {
       throw new Error("A draw id is required to announce a winner.");
     }
 
-    return db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       const pendingWinners = await tx
         .select()
         .from(winners)
@@ -225,8 +226,22 @@ export const winnersService = {
         );
       }
 
-      return { success: true, winnerIds: pendingWinners.map((winner) => winner.id) };
+      return {
+        success: true,
+        winnerIds: pendingWinners.map((winner) => winner.id),
+        announcedWinners: pendingWinners.map((winner) => ({
+          userId: winner.userId,
+          prizeTitle: winner.prizeTitle,
+          referenceId: winner.referenceId,
+        })),
+      };
     });
+
+    void communicationsService.sendWinnerEmails(result.announcedWinners);
+    return {
+      success: result.success,
+      winnerIds: result.winnerIds,
+    };
   },
 
   async announceDuePending(now = new Date()) {

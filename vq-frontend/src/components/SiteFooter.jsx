@@ -3,6 +3,10 @@ import './SiteFooter.css'
 function SiteFooter({ onNavigate }) {
   const quickLinks = [
     {
+      title: 'About VissQuest',
+      description: 'Learn how VissQuest works, why users trust us, and how real winners are rewarded.',
+    },
+    {
       title: 'Wallet',
       description: 'Fund your wallet here, then use it to enter draws, spin, and join daily activities.',
     },
@@ -33,15 +37,23 @@ function SiteFooter({ onNavigate }) {
           ))}
         </div>
         <div className="site-footer-links">
-          <button type="button" className="text-link" onClick={() => onNavigate('/terms')}>
+          <button type="button" className="text-link" onClick={() => onNavigate('/about')}>
+            About Us
+          </button>
+        </div>
+        <div className="site-footer-legal">
+          <strong>Legal</strong>
+          <div className="site-footer-links">
+            <button type="button" className="text-link" onClick={() => onNavigate('/terms-and-conditions')}>
             Terms & Conditions
-          </button>
-          <button type="button" className="text-link" onClick={() => onNavigate('/privacy')}>
+            </button>
+            <button type="button" className="text-link" onClick={() => onNavigate('/privacy-policy')}>
             Privacy Policy
-          </button>
-          <button type="button" className="text-link" onClick={() => onNavigate('/rules')}>
-            Rules
-          </button>
+            </button>
+            <button type="button" className="text-link" onClick={() => onNavigate('/disclaimer')}>
+              Disclaimer
+            </button>
+          </div>
         </div>
       </div>
     </footer>

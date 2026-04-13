@@ -156,6 +156,7 @@ export const referralsService = {
     return {
       rewardAmount: REFERRAL_REWARD_AMOUNT,
       referralId: referral.id,
+      referrerUserId: referral.referrerUserId,
     };
   },
 };

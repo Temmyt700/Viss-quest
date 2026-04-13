@@ -1,9 +1,16 @@
 import type { Request, Response } from "express";
 import { fundingService } from "./funding.service.js";
+import { communicationsService } from "../../services/communications/communications.service.js";
 
 export const fundingController = {
   async create(req: Request, res: Response) {
     const request = await fundingService.create(req.authUser!.id, req.body.amount, req.file);
+    communicationsService.notifyFundingRequestAdmin({
+      fullName: req.authUser?.name || "Unknown User",
+      referenceId: req.authUser?.referenceId || request.referenceId || "PENDING_REF",
+      amount: Number(request.amount || 0),
+      createdAt: request.createdAt,
+    });
     res.status(201).json({ fundingRequest: request });
   },
 

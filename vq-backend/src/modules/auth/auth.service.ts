@@ -13,11 +13,27 @@ type RegisterInput = {
   phone: string;
   password: string;
   referralCode?: string;
+  callbackURL?: string;
 };
 
 type LoginInput = {
   email: string;
   password: string;
+};
+
+type ForgotPasswordInput = {
+  email: string;
+  redirectTo: string;
+};
+
+type ResetPasswordInput = {
+  token: string;
+  newPassword: string;
+};
+
+type ResendVerificationInput = {
+  email: string;
+  callbackURL: string;
 };
 
 const applyReturnedHeaders = (res: Response, headers?: Headers) => {
@@ -41,6 +57,7 @@ export const authService = {
           name: input.fullName,
           email: input.email,
           password: input.password,
+          callbackURL: input.callbackURL,
         },
         returnHeaders: true,
       });
@@ -89,11 +106,72 @@ export const authService = {
         throw new Error("Service is temporarily unavailable right now. Please try again in a moment.");
       }
 
+      if (error instanceof Error && /verify/i.test(error.message)) {
+        throw new Error("Please verify your email before signing in.");
+      }
+
       throw error;
     }
 
     applyReturnedHeaders(res, result.headers);
     return result.response;
+  },
+
+  async requestPasswordReset(input: ForgotPasswordInput) {
+    try {
+      await auth.api.requestPasswordReset({
+        body: {
+          email: input.email,
+          redirectTo: input.redirectTo,
+        },
+      });
+    } catch (error) {
+      if (isDatabaseConnectivityError(error)) {
+        throw new Error("Service is temporarily unavailable right now. Please try again in a moment.");
+      }
+
+      throw error;
+    }
+
+    return { success: true };
+  },
+
+  async resetPassword(input: ResetPasswordInput) {
+    try {
+      await auth.api.resetPassword({
+        body: {
+          token: input.token,
+          newPassword: input.newPassword,
+        },
+      });
+    } catch (error) {
+      if (isDatabaseConnectivityError(error)) {
+        throw new Error("Service is temporarily unavailable right now. Please try again in a moment.");
+      }
+
+      throw error;
+    }
+
+    return { success: true };
+  },
+
+  async resendVerification(input: ResendVerificationInput) {
+    try {
+      await auth.api.sendVerificationEmail({
+        body: {
+          email: input.email,
+          callbackURL: input.callbackURL,
+        },
+      });
+    } catch (error) {
+      if (isDatabaseConnectivityError(error)) {
+        throw new Error("Service is temporarily unavailable right now. Please try again in a moment.");
+      }
+
+      throw error;
+    }
+
+    return { success: true };
   },
 
   async logout(res: Response, headers: HeadersInit) {
