@@ -24,6 +24,20 @@ export const createApp = () => {
   // forwarded protocol/origin handling accurate for auth and secure requests.
   app.set("trust proxy", 1);
 
+  // Keep Render's default health probe path ("/") healthy. This route is
+  // intentionally dependency-free so startup checks do not wait on DB state.
+  app.get("/", (_req, res) => {
+    res.status(200).json({ ok: true, service: "vissquest-api" });
+  });
+
+  app.get("/health", (_req, res) => {
+    res.status(200).json({ ok: true });
+  });
+
+  app.get("/healthz", (_req, res) => {
+    res.status(200).json({ ok: true });
+  });
+
   app.use(
     cors({
       origin(origin, callback) {
@@ -41,10 +55,6 @@ export const createApp = () => {
     res.setHeader("Pragma", "no-cache");
     res.setHeader("Expires", "0");
     next();
-  });
-
-  app.get("/health", (_req, res) => {
-    res.status(200).json({ ok: true });
   });
 
   app.use("/api/auth", authRoutes);
