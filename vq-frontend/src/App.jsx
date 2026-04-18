@@ -1449,10 +1449,7 @@ function App() {
   const handleLogin = async (formState) => {
     const loginResponse = await apiRequest('/api/auth/login', {
       method: 'POST',
-      body: {
-        ...formState,
-        callbackURL: `${window.location.origin}/email-verified`,
-      },
+      body: formState,
     })
 
     const loginUser = loginResponse?.user
