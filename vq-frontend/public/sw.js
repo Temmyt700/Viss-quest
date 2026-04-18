@@ -1,4 +1,4 @@
-const VERSION = 'v4'
+const VERSION = 'v5'
 const STATIC_CACHE = `vissquest-static-${VERSION}`
 const PAGE_CACHE = `vissquest-pages-${VERSION}`
 
@@ -10,8 +10,43 @@ const isApiRequest = (url) => url.pathname.startsWith('/api/')
 const isNavigationRequest = (request) => request.mode === 'navigate'
 const isManifestRequest = (url) => url.pathname === '/manifest.json'
 
+const isCacheableResponseForRequest = (request, response) => {
+  if (!response || !response.ok) return false
+
+  const contentType = (response.headers.get('content-type') || '').toLowerCase()
+  if (!contentType) return true
+
+  if (request.mode === 'navigate') {
+    return contentType.includes('text/html')
+  }
+
+  if (request.destination === 'script') {
+    return (
+      contentType.includes('javascript')
+      || contentType.includes('ecmascript')
+      || contentType.includes('application/x-javascript')
+    )
+  }
+
+  if (request.destination === 'style') {
+    return contentType.includes('text/css')
+  }
+
+  if (request.destination === 'image') {
+    return contentType.startsWith('image/')
+  }
+
+  if (request.destination === 'font') {
+    return contentType.startsWith('font/')
+      || contentType.includes('application/font')
+      || contentType.includes('application/octet-stream')
+  }
+
+  return !contentType.includes('text/html')
+}
+
 const putIfSuccessful = async (cacheName, request, response) => {
-  if (!response || !response.ok) return
+  if (!isCacheableResponseForRequest(request, response)) return
   const cache = await caches.open(cacheName)
   await cache.put(request, response)
 }
@@ -98,8 +133,17 @@ self.addEventListener('fetch', (event) => {
       caches.match(request).then((cachedResponse) => {
         const networkFetch = fetch(request)
           .then((networkResponse) => {
-            void putIfSuccessful(STATIC_CACHE, request, networkResponse.clone())
-            return networkResponse
+            if (isCacheableResponseForRequest(request, networkResponse)) {
+              void putIfSuccessful(STATIC_CACHE, request, networkResponse.clone())
+              return networkResponse
+            }
+            return (
+              cachedResponse
+              || new Response('', {
+                status: 503,
+                statusText: 'Asset temporarily unavailable',
+              })
+            )
           })
           .catch(() => cachedResponse)
 

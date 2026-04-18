@@ -1,1 +1,6 @@
+/assets/* /assets/:splat 200
+/manifest.json /manifest.json 200
+/sw.js /sw.js 200
+/vq-logo.svg /vq-logo.svg 200
+/vite.svg /vite.svg 200
 /* /index.html 200

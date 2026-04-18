@@ -19,6 +19,13 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   trustedOrigins: async (request) => getTrustedOrigins(request?.headers.get("origin")),
   advanced: {
+    useSecureCookies: env.NODE_ENV === "production",
+    defaultCookieAttributes: {
+      httpOnly: true,
+      sameSite: env.NODE_ENV === "production" ? "none" : "lax",
+      secure: env.NODE_ENV === "production",
+      path: "/",
+    },
     backgroundTasks: {
       handler: (promise) => runNonBlocking("Better Auth background task", promise),
     },

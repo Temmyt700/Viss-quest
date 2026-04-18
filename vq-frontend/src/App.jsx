@@ -411,6 +411,15 @@ function App() {
     })
   }, [noteServiceDegraded]) 
 
+  const logBackgroundError = useCallback((error) => {
+    if (!import.meta.env.DEV) return
+    const message = error instanceof Error ? error.message : ''
+    if (/please sign in to continue|verify your email to continue/i.test(message)) {
+      return
+    }
+    console.error(error)
+  }, [])
+
   const applyHomeSnapshot = useCallback((payload) => {
     const heroDraws = payload?.critical?.heroDraws || []
     setDraws(
@@ -910,7 +919,7 @@ function App() {
   const refreshAppData = useCallback(async () => {
     await Promise.allSettled([
       loadPublicData({ showLoader: true }).catch((error) => {
-        console.error(error)
+        logBackgroundError(error)
       }),
       refreshSession({ showLoader: true, includeDailyChancesSnapshot: true }),
     ])
@@ -975,6 +984,7 @@ function App() {
 
   const refreshDashboardSnapshot = useCallback(async ({ force = false } = {}) => {
     if (!isAuthenticated) return
+    if (!force && sessionRefreshPromiseRef.current) return
 
     const snapshotAge = Date.now() - dashboardSnapshotAtRef.current
     if (!force && dashboardSnapshotAtRef.current > 0 && snapshotAge < 45_000) {
@@ -986,6 +996,10 @@ function App() {
   }, [applyDashboardSnapshot, isAuthenticated])
 
   const refreshDailyChancesSnapshot = useCallback(async ({ showLoader = true, force = false } = {}) => {
+    if (isAuthenticated && !force && sessionRefreshPromiseRef.current) {
+      return
+    }
+
     const snapshotAge = Date.now() - dailyChancesSnapshotAtRef.current
     if (!force && hasDailyChancesSnapshotRef.current && snapshotAge < 60_000) {
       return
@@ -1034,21 +1048,21 @@ function App() {
   const refreshAfterMutation = useCallback(async ({ includeAdmin = false, includeSession = true } = {}) => {
     const tasks = [
       loadPublicData({ showLoader: false }).catch((error) => {
-        console.error(error)
+        logBackgroundError(error)
       }),
     ]
 
     if (includeSession && isAuthenticated) {
       tasks.push(
         refreshDashboardSnapshot({ force: true }).catch((error) => {
-          console.error(error)
+          logBackgroundError(error)
         }),
       )
 
       if (path === '/daily-chances') {
         tasks.push(
           refreshDailyChancesSnapshot({ showLoader: false, force: true }).catch((error) => {
-            console.error(error)
+            logBackgroundError(error)
           }),
         )
       }
@@ -1105,7 +1119,7 @@ function App() {
     // Refresh public-facing draw data when the user navigates back to Home so
     // the latest published draws appear without a hard browser reload.
     void loadPublicData().catch((error) => {
-      console.error(error)
+      logBackgroundError(error)
     })
   }, [loadPublicData, path])
 
@@ -1119,7 +1133,7 @@ function App() {
     setIsAdminOverviewLoading(path === '/admin')
     void loadAdminData()
       .catch((error) => {
-        console.error(error)
+        logBackgroundError(error)
       })
       .finally(() => {
         setIsAdminOverviewLoading(false)
@@ -1169,7 +1183,7 @@ function App() {
           },
         })
       } catch (error) {
-        console.error(error)
+        logBackgroundError(error)
         setAdminUserDetail(null)
         setAdminUserDetailError('We could not load this user right now.')
       } finally {
@@ -1197,13 +1211,14 @@ function App() {
         await refreshNotifications()
         await markNotificationsSeen()
       } catch (error) {
-        console.error(error)
+        logBackgroundError(error)
       }
     })()
   }, [isAuthenticated, markNotificationsSeen, path, refreshNotifications])
 
   useEffect(() => {
     if (!isAuthenticated || isAuthLoading || path !== '/dashboard') return
+    if (sessionRefreshPromiseRef.current) return
 
     const snapshotAge = Date.now() - dashboardSnapshotAtRef.current
     if (dashboardSnapshotAtRef.current > 0 && snapshotAge < 60_000) {
@@ -1213,7 +1228,7 @@ function App() {
     // Refresh dashboard-specific data only when the snapshot is stale so we
     // avoid repeated user/profile checks during normal navigation.
     void refreshDashboardSnapshot().catch((error) => {
-      console.error(error)
+      logBackgroundError(error)
     })
   }, [isAuthLoading, isAuthenticated, path, refreshDashboardSnapshot])
 
@@ -1222,7 +1237,7 @@ function App() {
 
     const showLoader = !hasDailyChancesSnapshotRef.current
     void refreshDailyChancesSnapshot({ showLoader }).catch((error) => {
-      console.error(error)
+      logBackgroundError(error)
     })
   }, [path, refreshDailyChancesSnapshot])
 
@@ -1231,7 +1246,7 @@ function App() {
     if (transactions.length) return
 
     void refreshWalletTransactions().catch((error) => {
-      console.error(error)
+      logBackgroundError(error)
     })
   }, [isAuthenticated, path, refreshWalletTransactions, transactions.length])
 
@@ -1241,7 +1256,7 @@ function App() {
     if (banks.length || banksError || isBanksLoading) return
 
     void refreshBanks().catch((error) => {
-      console.error(error)
+      logBackgroundError(error)
     })
   }, [banks.length, banksError, isBanksLoading, isFundingOpen, path, refreshBanks])
 
@@ -1252,7 +1267,7 @@ function App() {
     // Winners/testimonials pages should refresh on navigation so new winner
     // announcements and new proof uploads appear without a browser reload.
     void refreshWinnersAndTestimonials().catch((error) => {
-      console.error(error)
+      logBackgroundError(error)
     })
   }, [path, refreshWinnersAndTestimonials])
 
@@ -1268,25 +1283,25 @@ function App() {
 
       if (protectedUserPaths.includes(path)) {
         void refreshDashboardSnapshot().catch((error) => {
-          console.error(error)
+          logBackgroundError(error)
         })
       }
 
       if (path === '/daily-chances') {
         void refreshDailyChancesSnapshot({ showLoader: false }).catch((error) => {
-          console.error(error)
+          logBackgroundError(error)
         })
       }
 
       if (path === '/wallet') {
         void refreshWalletTransactions().catch((error) => {
-          console.error(error)
+          logBackgroundError(error)
         })
       }
 
       if (path === '/notifications' || isNotificationsOpen) {
         void refreshNotifications().catch((error) => {
-          console.error(error)
+          logBackgroundError(error)
         })
       }
     }
@@ -1423,10 +1438,10 @@ function App() {
       // Open immediately with cached data, then refresh in the background so
       // the bell feels responsive even on slower connections.
       void refreshNotifications().catch((error) => {
-        console.error(error)
+        logBackgroundError(error)
       })
       void markNotificationsSeen().catch((error) => {
-        console.error(error)
+        logBackgroundError(error)
       })
     }
   }
@@ -1469,7 +1484,7 @@ function App() {
     setIsAuthLoading(false)
     navigate('/dashboard')
     void refreshSession({ showLoader: false, includeDailyChancesSnapshot: true }).catch((error) => {
-      console.error(error)
+      logBackgroundError(error)
     })
   }
 
@@ -1557,7 +1572,7 @@ function App() {
     setIsLoggingOut(false)
 
     void loadPublicData({ showLoader: false }).catch((error) => {
-      console.error(error)
+      logBackgroundError(error)
     })
 
     // Persist logout server-side in the background without blocking UI.

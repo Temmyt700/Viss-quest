@@ -40,6 +40,7 @@ const envSchema = z.object({
   CLOUDINARY_API_KEY: trimmedRequiredString(),
   CLOUDINARY_API_SECRET: trimmedRequiredString(),
   FRONTEND_URL: trimmedUrl(),
+  FRONTEND_ORIGINS: trimmedOptionalString().optional().default(""),
   TELEGRAM_BOT_TOKEN: trimmedOptionalString().optional().default(""),
   TELEGRAM_CHAT_ID: trimmedOptionalString().optional().default(""),
   ZEPTO_MAIL_API_KEY: trimmedOptionalString().optional().default(""),
