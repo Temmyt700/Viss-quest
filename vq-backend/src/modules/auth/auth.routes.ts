@@ -22,6 +22,8 @@ router.post("/reset-password", validate(resetPasswordSchema), asyncHandler(authC
 router.post("/resend-verification", validate(resendVerificationSchema), asyncHandler(authController.resendVerification));
 router.post("/logout", requireAuth, asyncHandler(authController.logout));
 router.get("/profile", requireAuth, asyncHandler(authController.profile));
-router.all("/better-auth/*", toNodeHandler(auth));
+// Better Auth exposes routes such as /verify-email and /session directly under
+// the mounted auth base path, so we forward all unmatched auth routes here.
+router.all("/*", toNodeHandler(auth));
 
 export { router as authRoutes };

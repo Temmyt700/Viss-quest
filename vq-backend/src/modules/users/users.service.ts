@@ -1,9 +1,8 @@
-import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNotNull, lte } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import {
   drawEntries,
   drawPrizes,
-  notifications,
   quizAttempts,
   quizzes,
   users,
@@ -15,7 +14,6 @@ import { notificationsService } from "../notifications/notifications.service.js"
 import { referralsService } from "../referrals/referrals.service.js";
 import { spinService } from "../spin/spin.service.js";
 import { winnersService } from "../winners/winners.service.js";
-import { getUtcDayStart } from "../../utils/time.js";
 
 export const usersService = {
   async getMe(userId: string) {
@@ -30,35 +28,26 @@ export const usersService = {
 
   async getDashboard(userId: string) {
     const now = new Date();
-    const todayStart = getUtcDayStart(now);
 
     const [
       userRows,
       walletRows,
       entryRows,
-      winRows,
       recentTransactions,
       referralSummary,
-      unreadNotificationRows,
+      notificationsSnapshot,
       spinStatus,
       activeQuizRows,
       latestWin,
+      participationRows,
+      winRows,
     ] = await Promise.all([
       db.select().from(users).where(eq(users.id, userId)).limit(1),
       db.select().from(wallets).where(eq(wallets.userId, userId)).limit(1),
       db.select().from(drawEntries).where(eq(drawEntries.userId, userId)).orderBy(desc(drawEntries.createdAt)).limit(10),
-      db.select().from(winners).where(and(eq(winners.userId, userId), isNotNull(winners.announcedAt))).orderBy(desc(winners.announcedAt)),
       db.select().from(walletTransactions).where(eq(walletTransactions.userId, userId)).orderBy(desc(walletTransactions.createdAt)).limit(10),
       referralsService.getSummary(userId),
-      db
-        .select({ unreadCount: sql<number>`count(*)` })
-        .from(notifications)
-        .where(
-          and(
-            or(eq(notifications.userId, userId), isNull(notifications.userId)),
-            eq(notifications.isRead, false),
-          ),
-        ),
+      notificationsService.list(userId, { limit: 5, offset: 0 }),
       spinService.getStatus(userId),
       db
         .select()
@@ -67,13 +56,16 @@ export const usersService = {
         .orderBy(desc(quizzes.activeFrom), desc(quizzes.createdAt))
         .limit(1),
       winnersService.getLatestWinForUser(userId),
+      db.select({ total: count() }).from(drawEntries).where(eq(drawEntries.userId, userId)),
+      db.select({ total: count() }).from(winners).where(and(eq(winners.userId, userId), isNotNull(winners.announcedAt))),
     ]);
 
     const [user] = userRows;
     const [wallet] = walletRows;
     const prizeIds = entryRows.map((entry) => entry.drawPrizeId);
     const [activeQuiz] = activeQuizRows;
-    const [{ unreadCount = 0 } = { unreadCount: 0 }] = unreadNotificationRows;
+    const [{ total: participations = 0 } = { total: 0 }] = participationRows;
+    const [{ total: wins = 0 } = { total: 0 }] = winRows;
     const [activeQuizAttempt] = activeQuiz
       ? await db
           .select()
@@ -87,8 +79,8 @@ export const usersService = {
     return {
       user,
       wallet,
-      participations: entryRows.length,
-      wins: winRows.length,
+      participations: Number(participations ?? 0),
+      wins: Number(wins ?? 0),
       recentEntries: entryRows.slice(0, 10).map((entry) => ({
         ...entry,
         prizeTitle: prizesById.get(entry.drawPrizeId)?.title ?? "Unknown Prize",
@@ -107,7 +99,8 @@ export const usersService = {
       recentTransactions,
       referralSummary,
       notifications: {
-        unreadCount: Number(unreadCount ?? 0),
+        unreadCount: Number(notificationsSnapshot.unreadCount ?? 0),
+        latest: notificationsSnapshot.items,
       },
       dailySpin: {
         canSpin: Boolean(spinStatus.canSpin),

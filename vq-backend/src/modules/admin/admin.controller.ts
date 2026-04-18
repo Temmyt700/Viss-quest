@@ -47,6 +47,16 @@ export const adminController = {
     res.status(200).json(insights);
   },
 
+  async referralSettings(_req: Request, res: Response) {
+    const settings = await adminService.getReferralSettings();
+    res.status(200).json({ settings });
+  },
+
+  async updateReferralSettings(req: Request, res: Response) {
+    const settings = await adminService.updateReferralSettings(req.body, req.authUser!.id);
+    res.status(200).json({ settings });
+  },
+
   async pendingDrawWinners(_req: Request, res: Response) {
     const pending = await adminService.getPendingDrawWinners();
     res.status(200).json({ pending });

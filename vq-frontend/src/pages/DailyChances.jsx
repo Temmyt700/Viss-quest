@@ -15,8 +15,18 @@ function DailyChances({
   quizState,
   onSubmitAnswer,
   isLoading,
+  isAuthenticated,
+  isEmailVerified,
 }) {
   const [activeTab, setActiveTab] = useState('spin')
+  const isParticipationBlocked = isAuthenticated && !isEmailVerified
+  const isSpinDisabled =
+    isLoading ||
+    isParticipationBlocked ||
+    (isAuthenticated &&
+      (!spinState.canSpin ||
+        spinState.isSpinning ||
+        (spinState.availableFreeSpins < 1 && walletBalance < spinCost)))
 
   return (
     <section className="stack-lg">
@@ -48,12 +58,21 @@ function DailyChances({
 
       {activeTab === 'spin' ? (
         <section className="stack">
+          {isParticipationBlocked ? (
+            <section className="card feedback-banner feedback-banner-warning">
+              <p>Please verify your email to use Daily Spin and Daily Quiz.</p>
+            </section>
+          ) : null}
           <section className="card spin-summary-card">
             {isLoading ? (
               <div className="stack">
                 <div className="skeleton-line skeleton-line-title" />
                 <div className="skeleton-line" />
               </div>
+            ) : !isAuthenticated ? (
+              <p className="muted">
+                Login or create an account to view your wallet balance and spin.
+              </p>
             ) : (
               <>
                 <p className="muted">
@@ -71,12 +90,7 @@ function DailyChances({
             isSpinning={spinState.isSpinning}
             isPriming={spinState.isPriming}
             rotation={spinState.rotation}
-            disabled={
-              isLoading ||
-              !spinState.canSpin ||
-              spinState.isSpinning ||
-              (spinState.availableFreeSpins < 1 && walletBalance < spinCost)
-            }
+            disabled={isSpinDisabled}
             onSpin={onSpin}
             isLoading={isLoading}
           />
@@ -94,7 +108,13 @@ function DailyChances({
         </section>
       ) : (
         <section className="stack">
-          <QuizCard quiz={quiz} state={quizState} onSubmit={onSubmitAnswer} isLoading={isLoading} />
+          <QuizCard
+            quiz={quiz}
+            state={quizState}
+            onSubmit={onSubmitAnswer}
+            isLoading={isLoading}
+            isDisabled={isParticipationBlocked}
+          />
           <section className="card quiz-status-card">
             <h3>Today&apos;s Quiz Status</h3>
             <p className="muted">{quizState.answered ? 'Answered' : 'Not answered yet'}</p>

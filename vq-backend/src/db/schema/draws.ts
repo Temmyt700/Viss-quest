@@ -56,6 +56,7 @@ export const drawEntries = pgTable("draw_entries", {
   drawIdIdx: index("draw_entries_draw_id_idx").on(table.drawId),
   drawPrizeIdIdx: index("draw_entries_draw_prize_id_idx").on(table.drawPrizeId),
   userIdIdx: index("draw_entries_user_id_idx").on(table.userId),
+  drawPrizeUserIdx: index("draw_entries_draw_prize_user_idx").on(table.drawPrizeId, table.userId),
   createdAtIdx: index("draw_entries_created_at_idx").on(table.createdAt),
 }));
 
@@ -84,6 +85,8 @@ export const winners = pgTable("winners", {
 }, (table) => ({
   userIdIdx: index("winners_user_id_idx").on(table.userId),
   drawPrizeIdIdx: index("winners_draw_prize_id_idx").on(table.drawPrizeId),
+  drawAnnouncedIdx: index("winners_draw_announced_idx").on(table.drawId, table.announcedAt),
+  drawSelectedIdx: index("winners_draw_selected_idx").on(table.drawId, table.selectedAt),
   entryIdIdx: index("winners_entry_id_idx").on(table.entryId),
   selectedAtIdx: index("winners_selected_at_idx").on(table.selectedAt),
   announcedAtIdx: index("winners_announced_at_idx").on(table.announcedAt),

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import PasswordField from '../components/PasswordField'
 import './AuthAssist.css'
 
 function ResetPassword({ onBackToLogin, onSubmit }) {
@@ -8,6 +9,16 @@ function ResetPassword({ onBackToLogin, onSubmit }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [formError, setFormError] = useState('')
+
+  useEffect(() => {
+    if (!feedback) return
+
+    const timer = window.setTimeout(() => {
+      onBackToLogin()
+    }, 2600)
+
+    return () => window.clearTimeout(timer)
+  }, [feedback, onBackToLogin])
 
   return (
     <section className="auth-wrap">
@@ -43,14 +54,20 @@ function ResetPassword({ onBackToLogin, onSubmit }) {
         <p className="muted">Choose a new password for your VissQuest account.</p>
         {feedback ? <p className="form-success">{feedback}</p> : null}
         {formError ? <p className="form-error">{formError}</p> : null}
-        <label>
-          New Password
-          <input type="password" placeholder="Create new password" value={password} onChange={(event) => setPassword(event.target.value)} />
-        </label>
-        <label>
-          Confirm Password
-          <input type="password" placeholder="Confirm new password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
-        </label>
+        <PasswordField
+          label="New Password"
+          placeholder="Create new password"
+          value={password}
+          autoComplete="new-password"
+          onChange={(event) => setPassword(event.target.value)}
+        />
+        <PasswordField
+          label="Confirm Password"
+          placeholder="Confirm new password"
+          value={confirmPassword}
+          autoComplete="new-password"
+          onChange={(event) => setConfirmPassword(event.target.value)}
+        />
         <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
           {isSubmitting ? (
             <>
@@ -61,6 +78,7 @@ function ResetPassword({ onBackToLogin, onSubmit }) {
             'Reset Password'
           )}
         </button>
+        {feedback ? <p className="muted">Redirecting you back to login...</p> : null}
         <button type="button" className="text-link auth-inline-link" onClick={onBackToLogin}>
           Back to login
         </button>

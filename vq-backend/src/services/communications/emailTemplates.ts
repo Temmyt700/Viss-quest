@@ -8,6 +8,18 @@ type EmailTemplateInput = {
   body: string[];
   ctaLabel?: string;
   ctaUrl?: string;
+  ctaBackgroundColor?: string;
+  ctaTextColor?: string;
+  highlight?: {
+    label: string;
+    value: string;
+    description?: string;
+  };
+  highlightFirst?: boolean;
+  keyPoints?: Array<{
+    title: string;
+    text: string;
+  }>;
   footerNote?: string;
 };
 
@@ -21,12 +33,60 @@ const renderBodyHtml = (lines: string[]) =>
 
 const renderBodyText = (lines: string[]) => lines.join("\n\n");
 
+const renderKeyPointsHtml = (points: EmailTemplateInput["keyPoints"]) => {
+  if (!points?.length) return "";
+
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:8px 0 18px;border-collapse:collapse;">
+    ${points
+      .map(
+        (point) => `<tr>
+      <td style="padding:0 0 10px;">
+        <div style="border:1px solid #d6ebdc;background:#f4fbf6;border-radius:12px;padding:12px 14px;">
+          <p style="margin:0 0 5px;color:#1e5a39;font-size:13px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;">${point.title}</p>
+          <p style="margin:0;color:#2f4f3a;font-size:14px;line-height:1.65;">${point.text}</p>
+        </div>
+      </td>
+    </tr>`,
+      )
+      .join("")}
+  </table>`;
+};
+
 export const renderEmailTemplate = (input: EmailTemplateInput) => {
+  const ctaBackgroundColor = input.ctaBackgroundColor || "#14532d";
+  const ctaTextColor = input.ctaTextColor || "#ffffff";
+  const highlightHtml = input.highlight
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:18px 0 20px;border-collapse:separate;">
+      <tr>
+        <td style="border:1px solid #cce6d5;background:#f4fbf6;border-radius:14px;padding:14px 16px;">
+          <p style="margin:0 0 6px;color:#2f5a43;font-size:12px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;">${input.highlight.label}</p>
+          <p style="margin:0;color:#153a25;font-size:22px;font-weight:800;line-height:1.3;word-break:break-word;">${input.highlight.value}</p>
+          ${input.highlight.description ? `<p style="margin:8px 0 0;color:#466553;font-size:13px;line-height:1.55;">${input.highlight.description}</p>` : ""}
+        </td>
+      </tr>
+    </table>`
+    : "";
   const ctaHtml =
     input.ctaLabel && input.ctaUrl
-      ? `<p style="margin:24px 0 0;"><a href="${input.ctaUrl}" style="display:inline-block;padding:12px 20px;border-radius:999px;background:linear-gradient(135deg,#22c55e,#14b8a6);color:#ffffff;font-weight:700;text-decoration:none;">${input.ctaLabel}</a></p>`
+      ? `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:22px 0 0;">
+      <tr>
+        <td style="border-radius:999px;background:${ctaBackgroundColor};">
+          <a href="${input.ctaUrl}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:${ctaBackgroundColor};color:${ctaTextColor};font-size:15px;font-weight:700;text-decoration:none;mso-line-height-rule:exactly;">${input.ctaLabel}</a>
+        </td>
+      </tr>
+    </table>`
       : "";
+  const keyPointsHtml = renderKeyPointsHtml(input.keyPoints);
   const footerNote = input.footerNote || `If you need help, contact ${SUPPORT_EMAIL}.`;
+  const highlightedContentHtml = input.highlightFirst
+    ? `${highlightHtml}${keyPointsHtml}${renderBodyHtml(input.body)}`
+    : `${renderBodyHtml(input.body)}${highlightHtml}${keyPointsHtml}`;
+  const highlightText = input.highlight
+    ? `${input.highlight.label}: ${input.highlight.value}\n${input.highlight.description ? `${input.highlight.description}\n` : ""}\n`
+    : "";
+  const keyPointsText = input.keyPoints?.length
+    ? `${input.keyPoints.map((point) => `${point.title}: ${point.text}`).join("\n")}\n\n`
+    : "";
 
   return {
     subject: input.subject,
@@ -52,7 +112,7 @@ export const renderEmailTemplate = (input: EmailTemplateInput) => {
             </tr>
             <tr>
               <td style="padding:28px;">
-                ${renderBodyHtml(input.body)}
+                ${highlightedContentHtml}
                 ${ctaHtml}
               </td>
             </tr>
@@ -60,7 +120,7 @@ export const renderEmailTemplate = (input: EmailTemplateInput) => {
               <td style="padding:0 28px 28px;">
                 <div style="border-top:1px solid #e8f3eb;padding-top:18px;color:#557465;font-size:13px;line-height:1.7;">
                   <p style="margin:0 0 8px;">${footerNote}</p>
-                  <p style="margin:0;">This email was sent by ${BRAND_NAME}, operated under VISS GLOBAL RESOURCES.</p>
+                  <p style="margin:0;">VissQuest by VISS GLOBAL RESOURCES.</p>
                 </div>
               </td>
             </tr>
@@ -70,6 +130,6 @@ export const renderEmailTemplate = (input: EmailTemplateInput) => {
     </table>
   </body>
 </html>`,
-    text: `${input.heading}\n\n${input.intro}\n\n${renderBodyText(input.body)}\n\n${input.ctaLabel && input.ctaUrl ? `${input.ctaLabel}: ${input.ctaUrl}\n\n` : ""}${footerNote}\n\nThis email was sent by ${BRAND_NAME}, operated under VISS GLOBAL RESOURCES.`,
+    text: `${input.heading}\n\n${input.intro}\n\n${input.highlightFirst ? `${highlightText}${keyPointsText}${renderBodyText(input.body)}\n\n` : `${renderBodyText(input.body)}\n\n${highlightText}${keyPointsText}`}${input.ctaLabel && input.ctaUrl ? `${input.ctaLabel}: ${input.ctaUrl}\n\n` : ""}${footerNote}\n\nVissQuest by VISS GLOBAL RESOURCES.`,
   };
 };

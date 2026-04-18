@@ -148,15 +148,29 @@ const validateRemoteImageUrl = async (imageUrl: string) => {
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
+  const timeout = setTimeout(() => controller.abort(), 15000);
   try {
     const response = await fetch(imageUrl, {
       method: "HEAD",
       signal: controller.signal,
     });
-    const contentType = response.headers.get("content-type") ?? "";
 
-    if (!response.ok || !contentType.startsWith("image/")) {
+    const contentType = response.headers.get("content-type") ?? "";
+    if (response.ok && contentType.startsWith("image/")) {
+      return;
+    }
+
+    // Some image hosts block HEAD requests even when the asset itself is valid.
+    // A tiny GET probe keeps direct image URLs usable without breaking uploads.
+    const probeResponse = await fetch(imageUrl, {
+      method: "GET",
+      headers: {
+        Range: "bytes=0-0",
+      },
+      signal: controller.signal,
+    });
+    const probeType = probeResponse.headers.get("content-type") ?? "";
+    if (!probeResponse.ok || !probeType.startsWith("image/")) {
       throw new Error("The image URL must point to a valid image.");
     }
   } catch {
@@ -343,7 +357,12 @@ export const drawsService = {
       const nextImages = prizeImageFiles.length
         ? await uploadPrizeImages(prizeImageFiles, fallbackImageUrls)
         : fallbackImageUrls.length
-          ? fallbackImageUrls.map((imageUrl) => ({ imageUrl, imagePublicId: null as string | null }))
+          ? (await Promise.all(
+              fallbackImageUrls.map(async (imageUrl) => {
+                await validateRemoteImageUrl(imageUrl);
+                return { imageUrl, imagePublicId: null as string | null };
+              }),
+            ))
           : existingImages.length
             ? existingImages.map((image) => ({ imageUrl: image.imageUrl, imagePublicId: image.imagePublicId }))
             : normalizeImageUrls(prize.imageUrl ?? undefined).map((imageUrl) => ({ imageUrl, imagePublicId: prize.imagePublicId }));

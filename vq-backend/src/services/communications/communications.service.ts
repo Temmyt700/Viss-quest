@@ -2,6 +2,7 @@ import { eq, inArray } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { users } from "../../db/schema/index.js";
 import { logger } from "../../config/logger.js";
+import { env } from "../../config/env.js";
 import { runNonBlocking } from "../../utils/backgroundTask.js";
 import { emailService } from "./email.service.js";
 import { telegramService } from "./telegram.service.js";
@@ -41,13 +42,29 @@ export const communicationsService = {
     );
   },
 
-  sendPasswordResetEmail(user: { email: string; name?: string | null }, resetUrl: string) {
+  async sendVerificationEmailStrict(user: { email: string; name?: string | null }, verifyUrl: string) {
+    await emailService.sendTemplate(
+      { email: user.email, name: user.name },
+      { type: "verification", verifyUrl },
+      { requiredDelivery: true },
+    );
+  },
+
+  sendPasswordResetEmail(user: { email: string; name?: string | null; referenceId?: string | null }, resetUrl: string) {
     runNonBlocking(
       "Password reset email",
       emailService.sendTemplate(
-        { email: user.email, name: user.name },
+        { email: user.email, name: user.name, referenceId: user.referenceId },
         { type: "password_reset", resetUrl },
       ),
+    );
+  },
+
+  async sendPasswordResetEmailStrict(user: { email: string; name?: string | null; referenceId?: string | null }, resetUrl: string) {
+    await emailService.sendTemplate(
+      { email: user.email, name: user.name, referenceId: user.referenceId },
+      { type: "password_reset", resetUrl },
+      { requiredDelivery: true },
     );
   },
 
@@ -61,7 +78,7 @@ export const communicationsService = {
     runNonBlocking(
       "Funding approved email",
       emailService.sendTemplate(
-        { email: user.email, name: user.name },
+        { email: user.email, name: user.name, referenceId: user.referenceId },
         { type: "funding_approved", amount },
       ),
     );
@@ -77,7 +94,7 @@ export const communicationsService = {
     runNonBlocking(
       "Funding rejected email",
       emailService.sendTemplate(
-        { email: user.email, name: user.name },
+        { email: user.email, name: user.name, referenceId: user.referenceId },
         { type: "funding_rejected", amount },
       ),
     );
@@ -93,7 +110,7 @@ export const communicationsService = {
     runNonBlocking(
       "Draw entry confirmation email",
       emailService.sendTemplate(
-        { email: user.email, name: user.name },
+        { email: user.email, name: user.name, referenceId: user.referenceId },
         { type: "draw_entry_confirmed", drawTitle, entryFee },
       ),
     );
@@ -110,6 +127,7 @@ export const communicationsService = {
         id: users.id,
         name: users.name,
         email: users.email,
+        referenceId: users.referenceId,
       })
       .from(users)
       .where(inArray(users.id, uniqueUserIds));
@@ -122,7 +140,7 @@ export const communicationsService = {
       runNonBlocking(
         `Winner email (${winner.userId})`,
         emailService.sendTemplate(
-          { email: user.email, name: user.name },
+          { email: user.email, name: user.name, referenceId: user.referenceId },
           {
             type: "winner_notification",
             prizeTitle: winner.prizeTitle,
@@ -143,9 +161,33 @@ export const communicationsService = {
     runNonBlocking(
       "Referral reward email",
       emailService.sendTemplate(
-        { email: user.email, name: user.name },
+        { email: user.email, name: user.name, referenceId: user.referenceId },
         { type: "referral_reward", amount },
       ),
     );
+  },
+
+  async sendWelcomeAfterVerification(userId: string) {
+    try {
+      const user = await findUserById(userId);
+      if (!user?.email) {
+        logger.warn("Could not send welcome email because the user email is missing.", { userId });
+        return;
+      }
+
+      runNonBlocking(
+        "Welcome email after verification",
+        emailService.sendTemplate(
+          { email: user.email, name: user.name, referenceId: user.referenceId },
+          {
+            type: "welcome_verified",
+            referenceId: user.referenceId || "PENDING_REF",
+            dashboardUrl: `${env.FRONTEND_URL}/dashboard`,
+          },
+        ),
+      );
+    } catch (error) {
+      logger.warn("Could not prepare welcome email after verification.", error);
+    }
   },
 };

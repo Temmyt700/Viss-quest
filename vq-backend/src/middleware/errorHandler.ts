@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { logger } from "../config/logger.js";
 import { getDatabaseConnectivityMessage, isDatabaseConnectivityError } from "../utils/databaseConnectivity.js";
+import { isServiceUnavailableFailure } from "../utils/serviceAvailability.js";
 
 export const errorHandler = (error: Error, _req: Request, res: Response, _next: NextFunction) => {
   if (isDatabaseConnectivityError(error)) {
@@ -9,6 +10,19 @@ export const errorHandler = (error: Error, _req: Request, res: Response, _next: 
     logger.warn(getDatabaseConnectivityMessage(error));
     res.status(503).json({
       message: "Service is temporarily unavailable right now. Please try again in a moment.",
+    });
+    return;
+  }
+
+  if (isServiceUnavailableFailure(error)) {
+    const statusCode = (error as { statusCode?: number }).statusCode ?? 503;
+    const code = (error as { code?: string }).code ?? "SERVICE_UNAVAILABLE";
+    const message = error.message || "Service is temporarily unavailable right now. Please retry.";
+
+    logger.warn(error.message, error);
+    res.status(statusCode).json({
+      message,
+      code,
     });
     return;
   }

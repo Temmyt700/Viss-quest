@@ -32,4 +32,5 @@ export const spinHistory = pgTable("spin_history", {
   userIdIdx: index("spin_history_user_id_idx").on(table.userId),
   rewardIdIdx: index("spin_history_reward_id_idx").on(table.rewardId),
   spinDateIdx: index("spin_history_spin_date_idx").on(table.spinDate),
+  userSpinDateIdx: index("spin_history_user_spin_date_idx").on(table.userId, table.spinDate),
 }));

@@ -29,3 +29,16 @@ export const walletAdjustmentSchema = z.object({
   query: z.object({}).optional().default({}),
   params: z.object({}).optional().default({}),
 });
+
+export const updateReferralSettingsSchema = z.object({
+  body: z
+    .object({
+      isActive: z.boolean().optional(),
+      rewardAmount: z.coerce.number().min(0).optional(),
+    })
+    .refine((value) => typeof value.isActive === "boolean" || typeof value.rewardAmount === "number", {
+      message: "Provide at least one setting to update.",
+    }),
+  query: z.object({}).optional().default({}),
+  params: z.object({}).optional().default({}),
+});

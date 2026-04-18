@@ -5,15 +5,21 @@ async function parseResponse(response) {
   const payload = contentType.includes('application/json') ? await response.json() : await response.text()
 
   if (!response.ok) {
-    const message =
-      typeof payload === 'object' && payload !== null && 'message' in payload
-        ? payload.message
-        : 'Request failed.'
+    const message = typeof payload === 'object' && payload !== null && 'message' in payload
+      ? payload.message
+      : 'Request failed.'
+    const code = typeof payload === 'object' && payload !== null && 'code' in payload ? payload.code : null
 
     if (/database|failed query|drizzlequeryerror/i.test(String(message))) {
       throw new Error('Service is temporarily unavailable right now. Please try again in a moment.')
     }
-    throw new Error(message)
+
+    const error = new Error(message)
+    if (code) {
+      // Preserve machine-readable backend error codes for targeted UI behavior.
+      error.code = code
+    }
+    throw error
   }
 
   return payload

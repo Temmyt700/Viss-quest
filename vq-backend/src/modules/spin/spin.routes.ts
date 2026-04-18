@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../../middleware/auth.js";
+import { requireVerifiedEmail } from "../../middleware/requireVerifiedEmail.js";
 import { createRateLimit } from "../../middleware/rateLimit.js";
 import { requireRole } from "../../middleware/requireRole.js";
 import { validate } from "../../middleware/validate.js";
@@ -15,6 +16,7 @@ router.use(requireAuth);
 router.get("/status", asyncHandler(spinController.status));
 router.post(
   "/",
+  requireVerifiedEmail,
   createRateLimit({
     windowMs: 10_000,
     maxRequests: 3,

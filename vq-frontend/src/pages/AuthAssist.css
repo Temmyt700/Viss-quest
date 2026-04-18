@@ -2,6 +2,16 @@
   justify-self: start;
 }
 
+.auth-confirmation-card {
+  text-align: center;
+}
+
+.auth-note-card {
+  border-color: #dcefdc;
+  background: linear-gradient(135deg, rgba(243, 251, 243, 0.94), rgba(252, 255, 252, 0.92));
+  color: var(--ink);
+}
+
 .form-success {
   margin: 0;
   padding: 0.8rem 0.95rem;

@@ -25,24 +25,29 @@ export const auth = betterAuth({
   },
   emailVerification: {
     sendOnSignUp: true,
-    sendOnSignIn: true,
+    sendOnSignIn: false,
     autoSignInAfterVerification: false,
     async sendVerificationEmail({ user, url }) {
-      communicationsService.sendVerificationEmail(
+      // Verification delivery is strict for signup/resend flows so users do not
+      // see a success screen when no verification email was actually sent.
+      await communicationsService.sendVerificationEmailStrict(
         { email: user.email, name: user.name },
         url,
       );
     },
+    async afterEmailVerification(user) {
+      void communicationsService.sendWelcomeAfterVerification(user.id);
+    },
   },
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true,
+    requireEmailVerification: false,
     autoSignIn: false,
     resetPasswordTokenExpiresIn: 60 * 60,
     revokeSessionsOnPasswordReset: true,
     async sendResetPassword({ user, url }) {
-      communicationsService.sendPasswordResetEmail(
-        { email: user.email, name: user.name },
+      await communicationsService.sendPasswordResetEmailStrict(
+        { email: user.email, name: user.name, referenceId: (user as { referenceId?: string | null }).referenceId },
         url,
       );
     },

@@ -64,6 +64,13 @@
       "when": 1775461200000,
       "tag": "0008_grandfather_verified_users",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1775908800000,
+      "tag": "0009_referral_settings_and_perf_indexes",
+      "breakpoints": true
     }
   ]
 }

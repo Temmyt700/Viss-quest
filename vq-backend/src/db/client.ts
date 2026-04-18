@@ -6,9 +6,8 @@ import { env } from "../config/env.js";
 const sql = postgres(env.DATABASE_URL, {
   max: 10,
   prepare: false,
-  // Fail faster when the remote database host is unavailable so requests
-  // return a clean temporary-unavailable response instead of hanging.
-  connect_timeout: 5,
+  // Allow more time before surfacing connectivity errors on slower networks.
+  connect_timeout: 15,
   idle_timeout: 20,
   max_lifetime: 60 * 30,
 });

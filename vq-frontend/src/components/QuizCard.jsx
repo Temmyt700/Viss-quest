@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import './QuizCard.css'
 
-function QuizCard({ quiz, state, onSubmit, isLoading }) {
+function QuizCard({ quiz, state, onSubmit, isLoading, isDisabled = false }) {
   const [selectedOption, setSelectedOption] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     setSelectedOption('')
+    setIsSubmitting(false)
   }, [quiz?.id])
 
   if (isLoading) {
@@ -38,9 +40,14 @@ function QuizCard({ quiz, state, onSubmit, isLoading }) {
     { key: 'D', label: quiz.optionD },
   ]
 
-  const handleSubmit = () => {
-    if (!selectedOption || state.answered) return
-    onSubmit(selectedOption)
+  const handleSubmit = async () => {
+    if (!selectedOption || state.answered || isDisabled || isSubmitting) return
+    setIsSubmitting(true)
+    try {
+      await onSubmit(selectedOption)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -56,7 +63,7 @@ function QuizCard({ quiz, state, onSubmit, isLoading }) {
               value={option.key}
               onChange={() => setSelectedOption(option.key)}
               checked={selectedOption === option.key}
-              disabled={state.answered}
+              disabled={state.answered || isDisabled}
             />
             <span>{option.label}</span>
           </label>
@@ -66,10 +73,11 @@ function QuizCard({ quiz, state, onSubmit, isLoading }) {
         type="button"
         className="btn btn-primary quiz-submit-button"
         onClick={handleSubmit}
-        disabled={state.answered}
+        disabled={state.answered || isDisabled || isSubmitting || !selectedOption}
       >
-        {state.answered ? 'Answer Submitted' : 'Submit Answer'}
+        {state.answered ? 'Answer Submitted' : isSubmitting ? 'Submitting...' : 'Submit Answer'}
       </button>
+      {isDisabled ? <p className="muted">Verify your email to answer today&apos;s quiz.</p> : null}
       {state.answered ? (
         <p className={state.isCorrect ? 'result-success' : 'result-muted'}>
           {state.isCorrect

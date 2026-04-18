@@ -3,7 +3,6 @@ import { db } from "../../db/client.js";
 import { drawPrizes, fundingRequests, notifications, quizzes, users } from "../../db/schema/index.js";
 import { adminService } from "../admin/admin.service.js";
 import { drawsService } from "../draws/draws.service.js";
-import { notificationsService } from "../notifications/notifications.service.js";
 import { quizService } from "../quiz/quiz.service.js";
 import { spinService } from "../spin/spin.service.js";
 import { usersService } from "../users/users.service.js";
@@ -47,7 +46,7 @@ const mapDrawCard = (draw: any, prize: any, now: Date, drawWinners: any[] = []) 
 };
 
 const toDashboardView = (dashboard: any) => {
-  const latestNotifications = (dashboard.latestNotifications || []).slice(0, 3).map((item: any) => ({
+  const latestNotifications = (dashboard.notifications?.latest || []).slice(0, 3).map((item: any) => ({
     id: item.id,
     title: item.title,
     message: item.message,
@@ -60,8 +59,10 @@ const toDashboardView = (dashboard: any) => {
       user: {
         id: dashboard.user?.id,
         fullName: dashboard.user?.name ?? "Guest User",
+        email: dashboard.user?.email ?? "",
         referenceId: dashboard.user?.referenceId ?? "PENDING_REF",
         role: dashboard.user?.role ?? "user",
+        emailVerified: Boolean(dashboard.user?.emailVerified),
       },
       summary: {
         participations: dashboard.participations ?? 0,
@@ -75,6 +76,8 @@ const toDashboardView = (dashboard: any) => {
         latest: latestNotifications,
       },
       referrals: {
+        isActive: Boolean(dashboard.referralSummary?.isActive ?? true),
+        rewardAmount: Number(dashboard.referralSummary?.rewardAmount ?? 500),
         total: dashboard.referralSummary?.totalReferrals ?? 0,
         successful: dashboard.referralSummary?.successfulReferrals ?? 0,
         earned: Number(dashboard.referralSummary?.totalRewardsEarned ?? 0),
@@ -138,15 +141,8 @@ export const appService = {
   },
 
   async getDashboard(userId: string) {
-    const [dashboard, latestNotifications] = await Promise.all([
-      usersService.getDashboard(userId),
-      notificationsService.list(userId, { limit: 5, offset: 0 }),
-    ]);
-
-    return toDashboardView({
-      ...dashboard,
-      latestNotifications: latestNotifications.items,
-    });
+    const dashboard = await usersService.getDashboard(userId);
+    return toDashboardView(dashboard);
   },
 
   async getDailyChances(userId: string) {
@@ -245,6 +241,7 @@ export const appService = {
           };
         }),
         referralStats: {
+          settings: referrals.settings,
           totalReferredUsers: referrals.totalReferredUsers,
           latestRelationships: referrals.latestRelationships.slice(0, 5),
         },

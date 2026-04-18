@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import PasswordField from '../components/PasswordField'
 import './Login.css'
 
 function Login({ onGoSignup, onGoForgotPassword, onLogin, onResendVerification }) {
@@ -76,15 +77,13 @@ function Login({ onGoSignup, onGoForgotPassword, onLogin, onResendVerification }
             onChange={(event) => updateField('email', event.target.value)}
           />
         </label>
-        <label>
-          Password
-          <input
-            type="password"
-            placeholder="Enter password"
-            value={formState.password}
-            onChange={(event) => updateField('password', event.target.value)}
-          />
-        </label>
+        <PasswordField
+          label="Password"
+          placeholder="Enter password"
+          value={formState.password}
+          autoComplete="current-password"
+          onChange={(event) => updateField('password', event.target.value)}
+        />
         <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
           {isSubmitting ? (
             <>

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../../middleware/auth.js";
+import { requireVerifiedEmail } from "../../middleware/requireVerifiedEmail.js";
 import { requireRole } from "../../middleware/requireRole.js";
 import { validate } from "../../middleware/validate.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
@@ -11,7 +12,7 @@ const router = Router();
 router.get("/scheduled", requireAuth, requireRole("admin"), asyncHandler(quizController.scheduled));
 router.get("/today", asyncHandler(quizController.today));
 router.get("/history", requireAuth, asyncHandler(quizController.history));
-router.post("/answer", requireAuth, validate(answerQuizSchema), asyncHandler(quizController.answer));
+router.post("/answer", requireAuth, requireVerifiedEmail, validate(answerQuizSchema), asyncHandler(quizController.answer));
 router.post("/", requireAuth, requireRole("admin"), validate(createQuizSchema), asyncHandler(quizController.create));
 router.patch("/:id", requireAuth, requireRole("admin"), validate(updateQuizSchema), asyncHandler(quizController.update));
 router.post("/:id/publish", requireAuth, requireRole("admin"), asyncHandler(quizController.publish));

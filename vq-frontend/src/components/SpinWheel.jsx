@@ -60,7 +60,7 @@ function SpinWheel({ rewards, isSpinning, isPriming, rotation, disabled, onSpin,
           onClick={onSpin}
           disabled={disabled}
         >
-          <span>SPIN</span>
+          <span>{isSpinning ? 'SPINNING' : 'SPIN'}</span>
         </button>
       </div>
       <p className="spin-helper">

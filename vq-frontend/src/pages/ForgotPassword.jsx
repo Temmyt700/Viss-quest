@@ -30,13 +30,26 @@ function ForgotPassword({ onBackToLogin, onSubmit }) {
       >
         <p className="eyebrow">Password Help</p>
         <h1>Forgot Password?</h1>
-        <p className="muted">Enter the email linked to your account and we will send you a reset link.</p>
+        <p className="muted">
+          Enter the email linked to your account and we will send you a secure reset link through email.
+        </p>
         {feedback ? <p className="form-success">{feedback}</p> : null}
         {formError ? <p className="form-error">{formError}</p> : null}
         <label>
           Email
-          <input type="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} />
+          <input
+            type="email"
+            placeholder="you@example.com"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
         </label>
+        <div className="card auth-note-card">
+          <p>
+            If the address is registered, we will send a reset link to that inbox. If you do not see it, check your <strong>spam</strong> folder too.
+          </p>
+        </div>
         <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
           {isSubmitting ? (
             <>

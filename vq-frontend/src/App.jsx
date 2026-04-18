@@ -18,6 +18,8 @@ import Testimonials from './pages/Testimonials'
 import AboutPage from './pages/AboutPage'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
+import SignupSuccess from './pages/SignupSuccess'
+import VerificationSuccess from './pages/VerificationSuccess'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminBanks from './pages/AdminBanks'
 import AdminCreateDraw from './pages/AdminCreateDraw'
@@ -32,7 +34,7 @@ import AdminUserDetail from './pages/AdminUserDetail'
 import AdminNotifications from './pages/AdminNotifications'
 import AdminTestimonials from './pages/AdminTestimonials'
 import LegalPage from './pages/LegalPage'
-import { apiRequest } from './utils/api'
+import { API_BASE_URL, apiRequest } from './utils/api'
 import { SUPPORT_CONTACT } from './utils/constants'
 import {
   flattenDraws,
@@ -89,7 +91,7 @@ const emptyQuizState = {
   reward: 0,
 }
 
-const protectedUserPaths = ['/dashboard', '/wallet', '/daily-chances', '/notifications', '/testimonials']
+const protectedUserPaths = ['/dashboard', '/wallet', '/notifications', '/testimonials']
 
 // The current product only exposes two practical roles in the UI.
 const normalizeRole = (role) => (role === 'admin' ? 'admin' : 'user')
@@ -158,6 +160,10 @@ function App() {
   const spinRotationRef = useRef(0)
   const installPromptTimerRef = useRef(null)
   const hasLoadedInitialHomeRef = useRef(false)
+  const hasSkippedInitialHomeNavRefreshRef = useRef(false)
+  const dashboardSnapshotAtRef = useRef(0)
+  const hasDailyChancesSnapshotRef = useRef(false)
+  const dailyChancesSnapshotAtRef = useRef(0)
   const publicDataRequestRef = useRef(null)
   const sessionRefreshPromiseRef = useRef(null)
   const focusRefreshRef = useRef({ lastRunAt: 0 })
@@ -167,7 +173,9 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [isResendingVerificationBanner, setIsResendingVerificationBanner] = useState(false)
   const [authUser, setAuthUser] = useState(null)
+  const [hasConfirmedVerifiedEmail, setHasConfirmedVerifiedEmail] = useState(false)
   const [appFeedback, setAppFeedback] = useState(null)
   const [serviceDegradedMessage, setServiceDegradedMessage] = useState('')
   const [isHomeLoading, setIsHomeLoading] = useState(true)
@@ -217,6 +225,10 @@ function App() {
   const [adminParticipants, setAdminParticipants] = useState([])
   const [adminDraws, setAdminDraws] = useState([])
   const [adminReferrals, setAdminReferrals] = useState({
+    settings: {
+      isActive: true,
+      rewardAmount: 500,
+    },
     totalReferredUsers: 0,
     latestRelationships: [],
   })
@@ -261,8 +273,14 @@ function App() {
 
   useEffect(() => {
     const hasSeenInfo = window.localStorage.getItem('vq-info-seen')
-    if (!hasSeenInfo) {
+    if (hasSeenInfo) return
+
+    const timerId = window.setTimeout(() => {
       setIsInfoOpen(true)
+    }, 5_000)
+
+    return () => {
+      window.clearTimeout(timerId)
     }
   }, [])
 
@@ -337,7 +355,7 @@ function App() {
       markInstallPromptSeen()
       setIsInstallOpen(true)
       installPromptTimerRef.current = null
-    }, 30_000)
+    }, 15_000)
 
     return () => {
       if (installPromptTimerRef.current) {
@@ -482,8 +500,12 @@ function App() {
   }, [applyHomeSnapshot, noteServiceDegraded])
 
   const clearAuthenticatedState = useCallback(() => {
+    dashboardSnapshotAtRef.current = 0
+    hasDailyChancesSnapshotRef.current = false
+    dailyChancesSnapshotAtRef.current = 0
     setIsAuthenticated(false)
     setAuthUser(null)
+    setHasConfirmedVerifiedEmail(false)
     setDashboardData(emptyDashboard)
     setTransactions([])
     setNotifications([])
@@ -499,6 +521,10 @@ function App() {
     setAdminParticipants([])
     setAdminDraws([])
     setAdminReferrals({
+      settings: {
+        isActive: true,
+        rewardAmount: 500,
+      },
       totalReferredUsers: 0,
       latestRelationships: [],
     })
@@ -516,6 +542,26 @@ function App() {
     setQuizState(emptyQuizState)
   }, [])
 
+  const getSessionProfile = useCallback(async () => {
+    // A lightweight profile check avoids loading the full dashboard payload
+    // when the browser has no active session cookie.
+    const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
+      credentials: 'include',
+      cache: 'no-store',
+    })
+
+    if (response.status === 401 || response.status === 403) {
+      return null
+    }
+
+    if (!response.ok) {
+      const payload = await response.text().catch(() => '')
+      throw new Error(payload || 'We could not confirm your session right now.')
+    }
+
+    return response.json()
+  }, [])
+
   const applyDashboardSnapshot = useCallback((dashboardResponse) => {
     const critical = dashboardResponse?.critical || {}
     const secondary = dashboardResponse?.secondary || {}
@@ -525,8 +571,10 @@ function App() {
         ? {
             id: critical.user.id,
             name: critical.user.fullName,
+            email: critical.user.email || '',
             referenceId: critical.user.referenceId,
             role: critical.user.role,
+            emailVerified: Boolean(critical.user.emailVerified),
           }
         : null,
       wallet: critical.wallet
@@ -541,6 +589,8 @@ function App() {
       latestNotifications: critical.notifications?.latest || [],
       winnerNotice: critical.winnerNotice || null,
       referralSummary: {
+        isActive: Boolean(critical.referrals?.isActive ?? true),
+        rewardAmount: Number(critical.referrals?.rewardAmount || 500),
         referralCode: critical.referrals?.code || critical.user?.referenceId || 'PENDING_REF',
         totalReferrals: Number(critical.referrals?.total || 0),
         successfulReferrals: Number(critical.referrals?.successful || 0),
@@ -548,12 +598,16 @@ function App() {
         recentActivity: secondary.referralActivity || [],
       },
     })
+    if (critical.user?.emailVerified) {
+      setHasConfirmedVerifiedEmail(true)
+    }
     setTransactions(mapTransactions(secondary.recentTransactions || []))
     setNotificationsUnreadCount(Number(critical.notifications?.unreadCount || 0))
     setNotificationsHasMore(false)
     if ((critical.notifications?.latest || []).length) {
       setNotifications(mapNotifications(critical.notifications.latest))
     }
+    dashboardSnapshotAtRef.current = Date.now()
     setSpinState((prev) => ({
       ...prev,
       hasSpunToday: Boolean(critical.spinStatus?.hasSpunToday),
@@ -592,6 +646,10 @@ function App() {
         setAdminParticipants((overviewResponse.secondary?.participants || []).map(normalizeParticipantRow))
         setAdminDraws(flattenDraws(overviewResponse.secondary?.managedDraws || []))
         setAdminReferrals(overviewResponse.critical?.referralStats || {
+          settings: {
+            isActive: true,
+            rewardAmount: 500,
+          },
           totalReferredUsers: 0,
           latestRelationships: [],
         })
@@ -711,18 +769,75 @@ function App() {
     })
   }, [path])
 
-  const loadAuthenticatedData = useCallback(async () => {
-    const dashboardResponse = await apiRequest('/api/app/dashboard')
+  const applyDailyChancesSnapshot = useCallback((payload, { includeWalletBalance = true } = {}) => {
+    const critical = payload?.critical || {}
+
+    setSpinSettings((prev) => ({
+      ...prev,
+      spinCost: Number(critical.spin?.spinCost || prev.spinCost),
+      dailySpinLimit: Number(critical.spin?.dailySpinLimit || prev.dailySpinLimit || 1),
+      rewards: (critical.spin?.rewards || []).map((reward) => ({
+        id: reward.id,
+        label: reward.label,
+        rewardType: reward.rewardType,
+        type: reward.rewardType,
+        rewardAmount: Number(reward.rewardAmount || 0),
+        amount: Number(reward.rewardAmount || 0),
+      })),
+    }))
+    setSpinState((prev) => ({
+      ...prev,
+      hasSpunToday: Boolean(critical.spin?.hasSpunToday),
+      canSpin: Boolean(critical.spin?.canSpin),
+      dailySpinLimit: Number(critical.spin?.dailySpinLimit || prev.dailySpinLimit || 1),
+      paidSpinsUsed: Number(critical.spin?.paidSpinsUsed || 0),
+      availableFreeSpins: Number(critical.spin?.availableFreeSpins || 0),
+      remainingTotalSpins: Number(critical.spin?.remainingTotalSpins || 0),
+    }))
+    setQuizToday(critical.quiz || null)
+    setQuizState(
+      critical.quiz?.answered
+        ? {
+            answered: true,
+            isCorrect: Boolean(critical.quiz?.isCorrect),
+            reward: Number(critical.quiz?.rewardAmount || 0),
+          }
+        : emptyQuizState,
+    )
+
+    if (includeWalletBalance) {
+      setDashboardData((prev) => ({
+        ...prev,
+        wallet: {
+          balance: Number(critical.walletBalance || prev.wallet?.balance || 0),
+        },
+      }))
+    }
+
+    hasDailyChancesSnapshotRef.current = true
+    dailyChancesSnapshotAtRef.current = Date.now()
+  }, [])
+
+  const loadAuthenticatedData = useCallback(async ({ includeDailyChancesSnapshot = false } = {}) => {
+    const [dashboardResponse, dailyChancesResponse] = await Promise.all([
+      apiRequest('/api/app/dashboard'),
+      includeDailyChancesSnapshot ? apiRequest('/api/app/daily-chances') : Promise.resolve(null),
+    ])
     if (!dashboardResponse?.critical?.user) {
       throw new Error('We could not load your dashboard right now. Please try again.')
     }
 
     applyDashboardSnapshot(dashboardResponse)
+    if (dailyChancesResponse) {
+      applyDailyChancesSnapshot(dailyChancesResponse, { includeWalletBalance: true })
+    }
     const user = {
       id: dashboardResponse.critical.user.id,
       name: dashboardResponse.critical.user.fullName,
+      email: dashboardResponse.critical.user.email || '',
       referenceId: dashboardResponse.critical.user.referenceId,
       role: normalizeRole(dashboardResponse.critical.user.role),
+      emailVerified: Boolean(dashboardResponse.critical.user.emailVerified),
     }
     setAuthUser(user)
     setIsAuthenticated(true)
@@ -737,6 +852,10 @@ function App() {
       setAdminParticipants([])
       setAdminDraws([])
       setAdminReferrals({
+        settings: {
+          isActive: true,
+          rewardAmount: 500,
+        },
         totalReferredUsers: 0,
         latestRelationships: [],
       })
@@ -746,11 +865,11 @@ function App() {
       setScheduledQuizzes([])
     }
     setServiceDegradedMessage('')
-  }, [applyDashboardSnapshot])
+  }, [applyDashboardSnapshot, applyDailyChancesSnapshot])
 
   // Only switch the shell into the authenticated state after user-scoped
   // data is ready, so the navbar and protected routes update together.
-  const refreshSession = useCallback(async ({ showLoader = true } = {}) => {
+  const refreshSession = useCallback(async ({ showLoader = true, includeDailyChancesSnapshot = false } = {}) => {
     if (sessionRefreshPromiseRef.current) {
       return sessionRefreshPromiseRef.current
     }
@@ -760,10 +879,17 @@ function App() {
     }
     const request = (async () => {
       try {
+        const profileResponse = await getSessionProfile()
+        if (!profileResponse?.user) {
+          clearAuthenticatedState()
+          setAppFeedback(null)
+          return null
+        }
+
         if (showLoader) {
           setIsDashboardLoading(true)
         }
-        await loadAuthenticatedData()
+        await loadAuthenticatedData({ includeDailyChancesSnapshot })
         setAppFeedback(null)
       } catch (error) {
         noteServiceDegraded(error instanceof Error ? error.message : '')
@@ -779,34 +905,16 @@ function App() {
 
     sessionRefreshPromiseRef.current = request
     return request
-  }, [clearAuthenticatedState, loadAuthenticatedData, noteServiceDegraded])
+  }, [clearAuthenticatedState, getSessionProfile, loadAuthenticatedData, noteServiceDegraded])
 
   const refreshAppData = useCallback(async () => {
     await Promise.allSettled([
       loadPublicData({ showLoader: true }).catch((error) => {
         console.error(error)
       }),
-      refreshSession({ showLoader: true }),
+      refreshSession({ showLoader: true, includeDailyChancesSnapshot: true }),
     ])
   }, [loadPublicData, refreshSession])
-
-  const refreshAfterMutation = useCallback(async ({ includeAdmin = false, includeSession = true } = {}) => {
-    const tasks = [
-      loadPublicData({ showLoader: false }).catch((error) => {
-        console.error(error)
-      }),
-    ]
-
-    if (includeSession && isAuthenticated) {
-      tasks.push(refreshSession({ showLoader: false }))
-    }
-
-    if (includeAdmin && authUser?.role === 'admin') {
-      tasks.push(loadAdminData())
-    }
-
-    await Promise.allSettled(tasks)
-  }, [authUser?.role, isAuthenticated, loadAdminData, loadPublicData, refreshSession])
 
   const refreshNotifications = useCallback(async ({ append = false } = {}) => {
     if (!isAuthenticated) return
@@ -865,63 +973,93 @@ function App() {
     setTransactions(mapTransactions(transactionsResponse.transactions || []))
   }, [isAuthenticated])
 
-  const refreshDashboardSnapshot = useCallback(async () => {
+  const refreshDashboardSnapshot = useCallback(async ({ force = false } = {}) => {
     if (!isAuthenticated) return
+
+    const snapshotAge = Date.now() - dashboardSnapshotAtRef.current
+    if (!force && dashboardSnapshotAtRef.current > 0 && snapshotAge < 45_000) {
+      return
+    }
 
     const dashboardResponse = await apiRequest('/api/app/dashboard')
     applyDashboardSnapshot(dashboardResponse)
   }, [applyDashboardSnapshot, isAuthenticated])
 
-  const refreshDailyChancesSnapshot = useCallback(async () => {
-    if (!isAuthenticated) return
-
-    setIsDailyChancesLoading(true)
-    try {
-      const payload = await apiRequest('/api/app/daily-chances')
-      const critical = payload?.critical || {}
-
-      setSpinSettings((prev) => ({
-        ...prev,
-        spinCost: Number(critical.spin?.spinCost || prev.spinCost),
-        dailySpinLimit: Number(critical.spin?.dailySpinLimit || prev.dailySpinLimit || 1),
-        rewards: (critical.spin?.rewards || []).map((reward) => ({
-          id: reward.id,
-          label: reward.label,
-          rewardType: reward.rewardType,
-          type: reward.rewardType,
-          rewardAmount: Number(reward.rewardAmount || 0),
-          amount: Number(reward.rewardAmount || 0),
-        })),
-      }))
-      setSpinState((prev) => ({
-        ...prev,
-        hasSpunToday: Boolean(critical.spin?.hasSpunToday),
-        canSpin: Boolean(critical.spin?.canSpin),
-        dailySpinLimit: Number(critical.spin?.dailySpinLimit || prev.dailySpinLimit || 1),
-        paidSpinsUsed: Number(critical.spin?.paidSpinsUsed || 0),
-        availableFreeSpins: Number(critical.spin?.availableFreeSpins || 0),
-        remainingTotalSpins: Number(critical.spin?.remainingTotalSpins || 0),
-      }))
-      setQuizToday(critical.quiz || null)
-      setQuizState(
-        critical.quiz?.answered
-          ? {
-              answered: true,
-              isCorrect: Boolean(critical.quiz?.isCorrect),
-              reward: Number(critical.quiz?.rewardAmount || 0),
-            }
-          : emptyQuizState,
-      )
-      setDashboardData((prev) => ({
-        ...prev,
-        wallet: {
-          balance: Number(critical.walletBalance || prev.wallet?.balance || 0),
-        },
-      }))
-    } finally {
-      setIsDailyChancesLoading(false)
+  const refreshDailyChancesSnapshot = useCallback(async ({ showLoader = true, force = false } = {}) => {
+    const snapshotAge = Date.now() - dailyChancesSnapshotAtRef.current
+    if (!force && hasDailyChancesSnapshotRef.current && snapshotAge < 60_000) {
+      return
     }
-  }, [isAuthenticated])
+
+    if (showLoader) {
+      setIsDailyChancesLoading(true)
+    }
+
+    try {
+      if (!isAuthenticated) {
+        const [spinConfig, quizPayload] = await Promise.all([
+          apiRequest('/api/spin/config'),
+          apiRequest('/api/quiz/today'),
+        ])
+
+        const mappedSpinConfig = mapSpinSettings(spinConfig)
+        setSpinSettings((prev) => ({
+          ...prev,
+          ...mappedSpinConfig,
+        }))
+        setSpinState((prev) => ({
+          ...prev,
+          canSpin: true,
+          hasSpunToday: false,
+          paidSpinsUsed: 0,
+          availableFreeSpins: 0,
+          remainingTotalSpins: 1,
+        }))
+        setQuizToday(quizPayload?.quiz || null)
+        setQuizState(emptyQuizState)
+        hasDailyChancesSnapshotRef.current = true
+        dailyChancesSnapshotAtRef.current = Date.now()
+        return
+      }
+
+      const payload = await apiRequest('/api/app/daily-chances')
+      applyDailyChancesSnapshot(payload, { includeWalletBalance: true })
+    } finally {
+      if (showLoader) {
+        setIsDailyChancesLoading(false)
+      }
+    }
+  }, [applyDailyChancesSnapshot, isAuthenticated])
+
+  const refreshAfterMutation = useCallback(async ({ includeAdmin = false, includeSession = true } = {}) => {
+    const tasks = [
+      loadPublicData({ showLoader: false }).catch((error) => {
+        console.error(error)
+      }),
+    ]
+
+    if (includeSession && isAuthenticated) {
+      tasks.push(
+        refreshDashboardSnapshot({ force: true }).catch((error) => {
+          console.error(error)
+        }),
+      )
+
+      if (path === '/daily-chances') {
+        tasks.push(
+          refreshDailyChancesSnapshot({ showLoader: false, force: true }).catch((error) => {
+            console.error(error)
+          }),
+        )
+      }
+    }
+
+    if (includeAdmin && authUser?.role === 'admin') {
+      tasks.push(loadAdminData())
+    }
+
+    await Promise.allSettled(tasks)
+  }, [authUser?.role, isAuthenticated, loadAdminData, loadPublicData, path, refreshDashboardSnapshot, refreshDailyChancesSnapshot])
 
   const refreshBanks = useCallback(async () => {
     setIsBanksLoading(true)
@@ -959,6 +1097,10 @@ function App() {
   useEffect(() => {
     if (path !== '/') return
     if (!hasLoadedInitialHomeRef.current) return
+    if (!hasSkippedInitialHomeNavRefreshRef.current) {
+      hasSkippedInitialHomeNavRefreshRef.current = true
+      return
+    }
 
     // Refresh public-facing draw data when the user navigates back to Home so
     // the latest published draws appear without a hard browser reload.
@@ -1039,6 +1181,15 @@ function App() {
   }, [authUser?.role, isAuthenticated, path])
 
   useEffect(() => {
+    if (isAuthLoading || isAuthenticated) return
+    if (!protectedUserPaths.includes(path)) return
+    if (path === '/login') return
+
+    window.history.replaceState({}, '', '/login')
+    setPath('/login')
+  }, [isAuthLoading, isAuthenticated, path])
+
+  useEffect(() => {
     if (!isAuthenticated || path !== '/notifications') return
 
     void (async () => {
@@ -1054,20 +1205,26 @@ function App() {
   useEffect(() => {
     if (!isAuthenticated || isAuthLoading || path !== '/dashboard') return
 
-    // Refresh dashboard-specific data in the background so external updates,
-    // like referral rewards or approved funding, appear faster without a full reload.
+    const snapshotAge = Date.now() - dashboardSnapshotAtRef.current
+    if (dashboardSnapshotAtRef.current > 0 && snapshotAge < 60_000) {
+      return
+    }
+
+    // Refresh dashboard-specific data only when the snapshot is stale so we
+    // avoid repeated user/profile checks during normal navigation.
     void refreshDashboardSnapshot().catch((error) => {
-        console.error(error)
-      })
+      console.error(error)
+    })
   }, [isAuthLoading, isAuthenticated, path, refreshDashboardSnapshot])
 
   useEffect(() => {
-    if (!isAuthenticated || path !== '/daily-chances') return
+    if (path !== '/daily-chances') return
 
-    void refreshDailyChancesSnapshot().catch((error) => {
+    const showLoader = !hasDailyChancesSnapshotRef.current
+    void refreshDailyChancesSnapshot({ showLoader }).catch((error) => {
       console.error(error)
     })
-  }, [isAuthenticated, path, refreshDailyChancesSnapshot])
+  }, [path, refreshDailyChancesSnapshot])
 
   useEffect(() => {
     if (!isAuthenticated || path !== '/wallet') return
@@ -1116,7 +1273,7 @@ function App() {
       }
 
       if (path === '/daily-chances') {
-        void refreshDailyChancesSnapshot().catch((error) => {
+        void refreshDailyChancesSnapshot({ showLoader: false }).catch((error) => {
           console.error(error)
         })
       }
@@ -1150,6 +1307,8 @@ function App() {
         wins: 0,
         userId: '',
         referralSummary: {
+          isActive: true,
+          rewardAmount: 500,
           referralCode: 'VQ---',
           totalReferrals: 0,
           successfulReferrals: 0,
@@ -1169,6 +1328,8 @@ function App() {
       wins: dashboardData.wins || 0,
       userId: dashboardData.user.id,
       referralSummary: dashboardData.referralSummary || {
+        isActive: true,
+        rewardAmount: 500,
         referralCode: dashboardData.user.referenceId || 'PENDING_REF',
         totalReferrals: 0,
         successfulReferrals: 0,
@@ -1271,12 +1432,45 @@ function App() {
   }
 
   const handleLogin = async (formState) => {
-    await apiRequest('/api/auth/login', {
+    const loginResponse = await apiRequest('/api/auth/login', {
       method: 'POST',
-      body: formState,
+      body: {
+        ...formState,
+        callbackURL: `${window.location.origin}/email-verified`,
+      },
     })
-    await refreshSession()
+
+    const loginUser = loginResponse?.user
+      ? {
+          id: loginResponse.user.id || '',
+          name: loginResponse.user.name || formState.email,
+          email: loginResponse.user.email || formState.email,
+          referenceId: loginResponse.user.referenceId || 'PENDING_REF',
+          role: normalizeRole(loginResponse.user.role),
+          emailVerified: Boolean(loginResponse.user.emailVerified),
+        }
+      : {
+          id: '',
+          name: formState.email,
+          email: formState.email,
+          referenceId: 'PENDING_REF',
+          role: 'user',
+          emailVerified: false,
+        }
+
+    // Optimistic auth transition keeps the navbar and route state responsive
+    // the moment credentials are accepted, while full dashboard hydration
+    // continues in the background.
+    setAuthUser(loginUser)
+    setIsAuthenticated(true)
+    if (loginUser.emailVerified) {
+      setHasConfirmedVerifiedEmail(true)
+    }
+    setIsAuthLoading(false)
     navigate('/dashboard')
+    void refreshSession({ showLoader: false, includeDailyChancesSnapshot: true }).catch((error) => {
+      console.error(error)
+    })
   }
 
   const handleSignup = async (formState) => {
@@ -1284,14 +1478,11 @@ function App() {
       method: 'POST',
       body: {
         ...formState,
-        callbackURL: `${window.location.origin}/login?verified=1`,
+        callbackURL: `${window.location.origin}/email-verified`,
       },
     })
-    setAppFeedback({
-      type: 'success',
-      message: 'Account created. Please check your email and verify your account before signing in.',
-    })
-    navigate('/login')
+    setAppFeedback(null)
+    navigate('/signup-success')
   }
 
   const handleForgotPassword = async ({ email, redirectTo }) => {
@@ -1313,37 +1504,70 @@ function App() {
       method: 'POST',
       body: {
         email,
-        callbackURL: `${window.location.origin}/login?verified=1`,
+        callbackURL: `${window.location.origin}/email-verified`,
       },
     })
   }
 
-  const handleLogout = async () => {
-    setIsLoggingOut(true)
-    try {
-      try {
-        if (isAuthenticated) {
-          await apiRequest('/api/auth/logout', { method: 'POST' })
-        }
-      } catch (_error) {
-        // Logout should still clear local UI even if the request fails.
-      }
+  // Once verified in-session, keep this truthy locally to prevent banner flicker
+  // during background data refreshes.
+  const isEmailVerified = Boolean(authUser?.emailVerified || hasConfirmedVerifiedEmail)
 
-      clearAuthenticatedState()
-      setEntryDraw(null)
-      setIsFundingOpen(false)
-      navigate('/')
-      await loadPublicData({ showLoader: false })
+  const ensureVerifiedParticipation = useCallback(() => {
+    if (!isAuthenticated) {
+      navigate('/login')
+      return false
+    }
+
+    if (isEmailVerified) {
+      return true
+    }
+
+    showAppError(new Error('Please verify your email to participate. Use the resend link in the notice above.'))
+    return false
+  }, [isAuthenticated, isEmailVerified, navigate, showAppError])
+
+  const handleResendVerificationFromBanner = async () => {
+    if (!authUser?.email || isResendingVerificationBanner) return
+
+    setIsResendingVerificationBanner(true)
+    try {
+      await handleResendVerification(authUser.email)
+      setAppFeedback({
+        type: 'success',
+        message: 'Verification email sent. Please check your inbox and spam folder.',
+      })
+    } catch (error) {
+      showAppError(error, 'We could not resend the verification email right now. Please retry.')
     } finally {
-      setIsLoggingOut(false)
+      setIsResendingVerificationBanner(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return
+    setIsLoggingOut(true)
+    const hadAuthenticatedSession = isAuthenticated
+
+    // Clear local auth state first so logout feels instant in the UI.
+    clearAuthenticatedState()
+    setEntryDraw(null)
+    setIsFundingOpen(false)
+    navigate('/')
+    setIsLoggingOut(false)
+
+    void loadPublicData({ showLoader: false }).catch((error) => {
+      console.error(error)
+    })
+
+    // Persist logout server-side in the background without blocking UI.
+    if (hadAuthenticatedSession) {
+      void apiRequest('/api/auth/logout', { method: 'POST' }).catch(() => {})
     }
   }
 
   const handleEnterDraw = (draw) => {
-    if (!isAuthenticated) {
-      navigate('/login')
-      return
-    }
+    if (!ensureVerifiedParticipation()) return
 
     if (!isDrawEntryOpen(draw.status)) return
     setSelectedDrawDetails(null)
@@ -1373,6 +1597,7 @@ function App() {
 
   const handleConfirmEntry = async () => {
     if (!entryDraw) return
+    if (!ensureVerifiedParticipation()) return
 
     try {
       await apiRequest(`/api/draws/${entryDraw.drawId}/enter`, {
@@ -1433,6 +1658,8 @@ function App() {
   }
 
   const handleSpin = async () => {
+    if (!ensureVerifiedParticipation()) return
+
     if (
       !spinState.canSpin ||
       spinState.isSpinning ||
@@ -1512,7 +1739,7 @@ function App() {
           },
           showResultModal: true,
         })
-        await refreshDashboardSnapshot()
+        await refreshDashboardSnapshot({ force: true })
         await refreshWalletTransactions().catch(() => {})
         spinTimeoutRef.current = null
       }, 6000)
@@ -1534,6 +1761,7 @@ function App() {
 
   const handleQuizAnswer = async (selectedOption) => {
     if (!quizToday || quizState.answered) return
+    if (!ensureVerifiedParticipation()) return
 
     try {
       const result = await apiRequest('/api/quiz/answer', {
@@ -1549,7 +1777,7 @@ function App() {
         isCorrect: result.isCorrect,
         reward: Number(result.rewardAmount || 0),
       })
-      await refreshDashboardSnapshot()
+      await refreshDashboardSnapshot({ force: true })
       await refreshWalletTransactions().catch(() => {})
     } catch (error) {
       showAppError(error)
@@ -2037,6 +2265,29 @@ function App() {
     }
   }
 
+  const handleUpdateReferralSettings = async (settings) => {
+    const response = await apiRequest('/api/admin/referrals/settings', {
+      method: 'PATCH',
+      body: settings,
+    })
+
+    const nextSettings = response?.settings || {
+      isActive: true,
+      rewardAmount: 500,
+    }
+
+    setAdminReferrals((prev) => ({
+      ...prev,
+      settings: {
+        isActive: Boolean(nextSettings.isActive),
+        rewardAmount: Number(nextSettings.rewardAmount || 0),
+      },
+    }))
+
+    await refreshAfterMutation({ includeAdmin: true, includeSession: true })
+    return nextSettings
+  }
+
   const handleSendNotification = async (payload) => {
     try {
       await apiRequest('/api/notifications', {
@@ -2149,10 +2400,19 @@ function App() {
         )
       case '/signup':
         return <Signup onGoLogin={() => navigate('/login')} onSignup={handleSignup} />
+      case '/signup-success':
+        return <SignupSuccess onGoLogin={() => navigate('/login')} />
       case '/forgot-password':
         return <ForgotPassword onBackToLogin={() => navigate('/login')} onSubmit={handleForgotPassword} />
       case '/reset-password':
         return <ResetPassword onBackToLogin={() => navigate('/login')} onSubmit={handleResetPassword} />
+      case '/email-verified':
+        return (
+          <VerificationSuccess
+            isAuthenticated={isAuthenticated}
+            onNavigate={navigate}
+          />
+        )
       case '/dashboard':
         return (
           <Dashboard
@@ -2199,6 +2459,8 @@ function App() {
             quizState={quizState}
             onSubmitAnswer={handleQuizAnswer}
             isLoading={isAuthLoading || isDailyChancesLoading}
+            isAuthenticated={isAuthenticated}
+            isEmailVerified={isEmailVerified}
           />
         )
       case '/winners':
@@ -2252,6 +2514,7 @@ function App() {
             participants={adminParticipants}
             draws={adminDraws}
             referrals={adminReferrals}
+            onUpdateReferralSettings={handleUpdateReferralSettings}
             serverNow={serverNow}
             onUpdateDraw={handleUpdateDraw}
             onStatusChange={handleDrawStatusOverride}
@@ -2397,6 +2660,21 @@ function App() {
               <p>{serviceDegradedMessage}</p>
               <button type="button" className="text-link" onClick={() => setServiceDegradedMessage('')}>
                 Dismiss
+              </button>
+            </div>
+          </section>
+        ) : null}
+        {isAuthenticated && !isAuthLoading && !isEmailVerified ? (
+          <section className="card feedback-banner feedback-banner-warning">
+            <div className="row spread">
+              <p>Your email is not verified yet. Verify now to enter draws, spin, and answer quiz.</p>
+              <button
+                type="button"
+                className="text-link"
+                disabled={isResendingVerificationBanner}
+                onClick={handleResendVerificationFromBanner}
+              >
+                {isResendingVerificationBanner ? 'Resending...' : 'Resend verification email'}
               </button>
             </div>
           </section>

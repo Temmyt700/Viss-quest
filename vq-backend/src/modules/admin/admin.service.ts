@@ -13,6 +13,7 @@ import {
   winners,
 } from "../../db/schema/index.js";
 import { toNumber } from "../../utils/money.js";
+import { referralsService } from "../referrals/referrals.service.js";
 import { winnersService } from "../winners/winners.service.js";
 
 export const adminService = {
@@ -166,6 +167,7 @@ export const adminService = {
   },
 
   async getReferralInsights() {
+    const settings = await referralsService.getSettings();
     const referralRows = await db.select().from(referrals).orderBy(desc(referrals.createdAt));
     const userIds = [...new Set(referralRows.flatMap((row) => [row.referrerUserId, row.refereeUserId]))];
     const relatedUsers = userIds.length ? await db.select().from(users).where(inArray(users.id, userIds)) : [];
@@ -177,6 +179,7 @@ export const adminService = {
     });
 
     return {
+      settings,
       totalReferredUsers: referralRows.length,
       latestRelationships: referralRows.slice(0, 20).map((row) => ({
         id: row.id,
@@ -193,6 +196,30 @@ export const adminService = {
         totalReferralsByReferrer: totalsByReferrer.get(row.referrerUserId) ?? 0,
       })),
     };
+  },
+
+  async getReferralSettings() {
+    return referralsService.getSettings();
+  },
+
+  async updateReferralSettings(
+    input: { isActive?: boolean; rewardAmount?: number },
+    actorUserId: string,
+  ) {
+    const settings = await referralsService.updateSettings(input);
+
+    await db.insert(adminLogs).values({
+      actorUserId,
+      action: "referral.settings.updated",
+      targetType: "referral_settings",
+      targetId: settings.id ?? "default",
+      metadata: {
+        isActive: settings.isActive,
+        rewardAmount: settings.rewardAmount,
+      },
+    });
+
+    return settings;
   },
 
   async getPendingDrawWinners() {

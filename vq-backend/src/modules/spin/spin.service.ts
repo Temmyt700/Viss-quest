@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import {
   spinHistory,
@@ -121,15 +121,25 @@ export const spinService = {
         throw new Error("Insufficient wallet balance.");
       }
 
+      const rewardIds = rewards.map((reward) => reward.id);
+      const winnerCountRows = rewardIds.length
+        ? await tx
+            .select({
+              rewardId: spinHistory.rewardId,
+              count: sql<number>`count(*)`,
+            })
+            .from(spinHistory)
+            .where(and(inArray(spinHistory.rewardId, rewardIds), gte(spinHistory.spinDate, todayStart)))
+            .groupBy(spinHistory.rewardId)
+        : [];
+      const winnersByRewardId = new Map(winnerCountRows.map((row) => [row.rewardId, Number(row.count ?? 0)]));
+
       const eligibleRewards = [];
       for (const reward of rewards) {
         const rewardAmount = Math.min(toNumber(reward.rewardAmount), settings.maxSingleReward);
-        const [{ count: rewardWinnersToday }] = await tx
-          .select({ count: sql<number>`count(*)` })
-          .from(spinHistory)
-          .where(and(eq(spinHistory.rewardId, reward.id), gte(spinHistory.spinDate, todayStart)));
+        const rewardWinnersToday = winnersByRewardId.get(reward.id) ?? 0;
 
-        if ((rewardWinnersToday ?? 0) < reward.maxDailyWinners) {
+        if (rewardWinnersToday < reward.maxDailyWinners) {
           eligibleRewards.push({ ...reward, rewardAmount });
         }
       }

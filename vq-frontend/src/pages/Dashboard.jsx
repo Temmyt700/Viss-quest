@@ -4,6 +4,8 @@ import './Dashboard.css'
 
 function Dashboard({ user, recentEntries, notificationsUnreadCount, onNavigate, canOpenTestimonials, testimonial, isLoading }) {
   const referralSummary = user.referralSummary || {
+    isActive: true,
+    rewardAmount: 500,
     referralCode: user.referenceId,
     totalReferrals: 0,
     successfulReferrals: 0,
@@ -66,10 +68,11 @@ function Dashboard({ user, recentEntries, notificationsUnreadCount, onNavigate, 
         </section>
       ) : null}
 
+      {referralSummary.isActive ? (
       <section className="card stack">
         <div className="row spread">
           <h2>Referral Center</h2>
-          <span className="status-pill">Earn {formatCurrency(500)} per qualified referral</span>
+          <span className="status-pill">Earn {formatCurrency(referralSummary.rewardAmount || 0)} per qualified referral</span>
         </div>
         <div className="grid three">
           <StatsCard label="Total Referrals" value={referralSummary.totalReferrals} />
@@ -115,6 +118,7 @@ function Dashboard({ user, recentEntries, notificationsUnreadCount, onNavigate, 
           )}
         </div>
       </section>
+      ) : null}
 
       <section className="card stack">
         <h2>Recent Entries</h2>

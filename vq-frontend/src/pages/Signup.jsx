@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import PasswordField from '../components/PasswordField'
 import './Signup.css'
 
 function Signup({ onGoLogin, onSignup }) {
@@ -97,25 +98,21 @@ function Signup({ onGoLogin, onSignup }) {
         <p className="muted">
           Your WhatsApp number is important because winners are contacted through it.
         </p>
-        <label>
-          Password
-          <input
-            type="password"
-            placeholder="Create password"
-            value={formState.password}
-            required
-            onChange={(event) => updateField('password', event.target.value)}
-          />
-        </label>
-        <label>
-          Confirm Password
-          <input
-            type="password"
-            placeholder="Confirm password"
-            value={formState.confirmPassword}
-            onChange={(event) => updateField('confirmPassword', event.target.value)}
-          />
-        </label>
+        <PasswordField
+          label="Password"
+          placeholder="Create password"
+          value={formState.password}
+          required
+          autoComplete="new-password"
+          onChange={(event) => updateField('password', event.target.value)}
+        />
+        <PasswordField
+          label="Confirm Password"
+          placeholder="Confirm password"
+          value={formState.confirmPassword}
+          autoComplete="new-password"
+          onChange={(event) => updateField('confirmPassword', event.target.value)}
+        />
         <label>
           Referral Code (Optional)
           <input

@@ -2,10 +2,11 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  background: rgba(255, 255, 255, 0.9);
+  background: linear-gradient(180deg, rgba(249, 255, 249, 0.92), rgba(243, 250, 244, 0.9));
   backdrop-filter: blur(6px);
   border-bottom: 1px solid #e4f3e5;
   padding: 0.85rem 4vw;
+  touch-action: manipulation;
 }
 
 .brand-link {
@@ -38,6 +39,8 @@
 .nav-shell {
   display: grid;
   gap: 0.75rem;
+  position: relative;
+  z-index: 1;
 }
 
 .nav-links {
@@ -63,6 +66,9 @@
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.16s ease, filter 0.16s ease, opacity 0.16s ease, box-shadow 0.16s ease;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .nav-link.active {

@@ -26,6 +26,7 @@ function AdminDashboard({
   participants,
   draws,
   referrals,
+  onUpdateReferralSettings,
   serverNow,
   onUpdateDraw,
   onStatusChange,
@@ -37,10 +38,24 @@ function AdminDashboard({
   const [drawForm, setDrawForm] = useState(null)
   const [isSavingDraw, setIsSavingDraw] = useState(false)
   const [busyDrawAction, setBusyDrawAction] = useState(null)
+  const [referralSettingsForm, setReferralSettingsForm] = useState({
+    isActive: true,
+    rewardAmount: 500,
+  })
+  const [isSavingReferralSettings, setIsSavingReferralSettings] = useState(false)
+  const [referralSettingsFeedback, setReferralSettingsFeedback] = useState('')
 
   useEffect(() => {
     setDrawForm(selectedDraw ? buildDrawForm(selectedDraw) : null)
   }, [selectedDraw])
+
+  useEffect(() => {
+    const nextSettings = referrals?.settings || { isActive: true, rewardAmount: 500 }
+    setReferralSettingsForm({
+      isActive: Boolean(nextSettings.isActive),
+      rewardAmount: Number(nextSettings.rewardAmount || 0),
+    })
+  }, [referrals?.settings])
 
   const handleSaveDraw = async () => {
     if (!selectedDraw || !drawForm || isSavingDraw) return
@@ -65,6 +80,24 @@ function AdminDashboard({
       }
     } finally {
       setBusyDrawAction(null)
+    }
+  }
+
+  const handleSaveReferralSettings = async () => {
+    if (!onUpdateReferralSettings || isSavingReferralSettings) return
+
+    setIsSavingReferralSettings(true)
+    setReferralSettingsFeedback('')
+    try {
+      await onUpdateReferralSettings({
+        isActive: referralSettingsForm.isActive,
+        rewardAmount: Number(referralSettingsForm.rewardAmount || 0),
+      })
+      setReferralSettingsFeedback('Referral settings saved.')
+    } catch {
+      setReferralSettingsFeedback('We could not save referral settings right now.')
+    } finally {
+      setIsSavingReferralSettings(false)
     }
   }
 
@@ -356,6 +389,65 @@ function AdminDashboard({
       </section>
       <section className="stack">
         <h2>Referral Insights</h2>
+        <section className="card referral-control-card">
+          <div className="row spread">
+            <strong>Referral Control</strong>
+            <span className={`status-pill ${referralSettingsForm.isActive ? '' : 'status-pill-muted'}`}>
+              {referralSettingsForm.isActive ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+          <div className="grid two">
+            <label>
+              Referral Status
+              <select
+                value={referralSettingsForm.isActive ? 'active' : 'inactive'}
+                onChange={(event) => {
+                  const nextIsActive = event.target.value === 'active'
+                  setReferralSettingsFeedback('')
+                  setReferralSettingsForm((prev) => ({ ...prev, isActive: nextIsActive }))
+                }}
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </label>
+            <label>
+              Reward Amount (NGN)
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={referralSettingsForm.rewardAmount}
+                onChange={(event) => {
+                  setReferralSettingsFeedback('')
+                  setReferralSettingsForm((prev) => ({
+                    ...prev,
+                    rewardAmount: Number(event.target.value || 0),
+                  }))
+                }}
+              />
+            </label>
+          </div>
+          <div className="row">
+            <button
+              type="button"
+              className={`btn btn-primary ${isSavingReferralSettings ? 'is-loading' : ''}`}
+              onClick={handleSaveReferralSettings}
+              disabled={isSavingReferralSettings}
+              aria-busy={isSavingReferralSettings}
+            >
+              {isSavingReferralSettings ? (
+                <>
+                  <span className="btn-spinner" aria-hidden="true" />
+                  Saving...
+                </>
+              ) : (
+                'Save Referral Settings'
+              )}
+            </button>
+            {referralSettingsFeedback ? <span className="muted">{referralSettingsFeedback}</span> : null}
+          </div>
+        </section>
         <div className="grid three">
           <StatsCard label="Total Referred Users" value={referrals.totalReferredUsers || 0} />
           <StatsCard

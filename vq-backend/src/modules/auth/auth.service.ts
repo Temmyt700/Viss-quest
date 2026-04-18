@@ -1,10 +1,12 @@
 import { eq } from "drizzle-orm";
 import type { Response } from "express";
 import { auth } from "../../config/auth.js";
+import { logger } from "../../config/logger.js";
 import { db } from "../../db/client.js";
 import { users, wallets } from "../../db/schema/index.js";
 import { generateReferenceId } from "../../utils/referenceId.js";
 import { isDatabaseConnectivityError } from "../../utils/databaseConnectivity.js";
+import { isServiceUnavailableFailure, ServiceUnavailableError } from "../../utils/serviceAvailability.js";
 import { referralsService } from "../referrals/referrals.service.js";
 
 type RegisterInput = {
@@ -19,6 +21,7 @@ type RegisterInput = {
 type LoginInput = {
   email: string;
   password: string;
+  callbackURL?: string;
 };
 
 type ForgotPasswordInput = {
@@ -48,8 +51,35 @@ const applyReturnedHeaders = (res: Response, headers?: Headers) => {
   });
 };
 
+const cleanupUserById = async (userId?: string | null) => {
+  if (!userId) return;
+
+  try {
+    await db.delete(users).where(eq(users.id, userId));
+  } catch (error) {
+    logger.warn("Could not clean up partially created signup user.", { userId, error });
+  }
+};
+
+const cleanupRecentUnverifiedUserByEmail = async (email: string, startedAt: Date) => {
+  try {
+    const [candidate] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    if (!candidate) return;
+
+    const createdAt = candidate.createdAt ? new Date(candidate.createdAt) : null;
+    const isRecent = createdAt ? createdAt.getTime() >= startedAt.getTime() : false;
+    if (isRecent && !candidate.emailVerified) {
+      await db.delete(users).where(eq(users.id, candidate.id));
+    }
+  } catch (error) {
+    logger.warn("Could not clean up recent failed signup record.", { email, error });
+  }
+};
+
 export const authService = {
   async register(input: RegisterInput, res: Response) {
+    const signupStartedAt = new Date();
+    let createdUserId: string | null = null;
     let result;
     try {
       result = await auth.api.signUpEmail({
@@ -61,9 +91,15 @@ export const authService = {
         },
         returnHeaders: true,
       });
+      createdUserId = result.response.user.id;
     } catch (error) {
+      if (isServiceUnavailableFailure(error)) {
+        await cleanupRecentUnverifiedUserByEmail(input.email, signupStartedAt);
+        throw new ServiceUnavailableError("We could not send the verification email right now. Please retry.");
+      }
+
       if (isDatabaseConnectivityError(error)) {
-        throw new Error("Service is temporarily unavailable right now. Please try again in a moment.");
+        throw new ServiceUnavailableError("Service is temporarily unavailable right now. Please try again in a moment.");
       }
 
       throw error;
@@ -71,27 +107,39 @@ export const authService = {
 
     applyReturnedHeaders(res, result.headers);
 
-    const referenceId = await generateReferenceId();
-    await db.transaction(async (tx) => {
-      await tx
-        .update(users)
-        .set({
-          phone: input.phone,
-          referenceId,
-        })
-        .where(eq(users.id, result.response.user.id));
+    try {
+      const referenceId = await generateReferenceId();
+      await db.transaction(async (tx) => {
+        await tx
+          .update(users)
+          .set({
+            phone: input.phone,
+            referenceId,
+            // New accounts remain unverified until they complete the email link flow.
+            emailVerified: false,
+          })
+          .where(eq(users.id, result.response.user.id));
 
-      await tx.insert(wallets).values({
-        userId: result.response.user.id,
-        balance: "0",
+        await tx.insert(wallets).values({
+          userId: result.response.user.id,
+          balance: "0",
+        });
       });
-    });
 
-    // Attach the referral after the new user exists and has a stable reference id.
-    await referralsService.attachReferral(result.response.user.id, input.referralCode);
+      // Attach the referral after the new user exists and has a stable reference id.
+      await referralsService.attachReferral(result.response.user.id, input.referralCode);
 
-    const [user] = await db.select().from(users).where(eq(users.id, result.response.user.id)).limit(1);
-    return user;
+      const [user] = await db.select().from(users).where(eq(users.id, result.response.user.id)).limit(1);
+      return user;
+    } catch (error) {
+      await cleanupUserById(createdUserId);
+
+      if (isServiceUnavailableFailure(error) || isDatabaseConnectivityError(error)) {
+        throw new ServiceUnavailableError("Service is temporarily unavailable right now. Please try again in a moment.");
+      }
+
+      throw error;
+    }
   },
 
   async login(input: LoginInput, res: Response) {
@@ -103,11 +151,7 @@ export const authService = {
       });
     } catch (error) {
       if (isDatabaseConnectivityError(error)) {
-        throw new Error("Service is temporarily unavailable right now. Please try again in a moment.");
-      }
-
-      if (error instanceof Error && /verify/i.test(error.message)) {
-        throw new Error("Please verify your email before signing in.");
+        throw new ServiceUnavailableError("Service is temporarily unavailable right now. Please try again in a moment.");
       }
 
       throw error;
@@ -126,8 +170,8 @@ export const authService = {
         },
       });
     } catch (error) {
-      if (isDatabaseConnectivityError(error)) {
-        throw new Error("Service is temporarily unavailable right now. Please try again in a moment.");
+      if (isServiceUnavailableFailure(error) || isDatabaseConnectivityError(error)) {
+        throw new ServiceUnavailableError("We could not send the reset email right now. Please retry.");
       }
 
       throw error;
@@ -146,7 +190,7 @@ export const authService = {
       });
     } catch (error) {
       if (isDatabaseConnectivityError(error)) {
-        throw new Error("Service is temporarily unavailable right now. Please try again in a moment.");
+        throw new ServiceUnavailableError("Service is temporarily unavailable right now. Please try again in a moment.");
       }
 
       throw error;
@@ -164,8 +208,8 @@ export const authService = {
         },
       });
     } catch (error) {
-      if (isDatabaseConnectivityError(error)) {
-        throw new Error("Service is temporarily unavailable right now. Please try again in a moment.");
+      if (isServiceUnavailableFailure(error) || isDatabaseConnectivityError(error)) {
+        throw new ServiceUnavailableError("We could not send the verification email right now. Please retry.");
       }
 
       throw error;
