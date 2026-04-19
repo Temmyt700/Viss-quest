@@ -37,8 +37,7 @@
 }
 
 .nav-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
   gap: 0.45rem;
   position: relative;
@@ -46,9 +45,18 @@
 }
 
 .nav-links {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  overflow-x: auto;
+  scrollbar-width: none;
   gap: 0.38rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-links::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-link {
@@ -62,6 +70,7 @@
   padding: 0.52rem 0.58rem;
   min-height: 40px;
   min-width: 0;
+  flex: 0 0 auto;
   text-align: center;
   font-size: 0.8rem;
   line-height: 1.1;
@@ -115,6 +124,7 @@
   align-items: center;
   gap: 0.4rem;
   justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 @media (min-width: 768px) {
@@ -140,6 +150,7 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
+    overflow: visible;
   }
 
   .nav-link-auth-mobile {

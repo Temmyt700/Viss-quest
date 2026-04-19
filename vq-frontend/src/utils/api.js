@@ -75,6 +75,26 @@ async function parseResponse(response) {
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+const trimTrailingSlash = (value) => value.replace(/\/+$/, '')
+
+const buildApiUrl = (path) => {
+  const normalizedPath = String(path || '').startsWith('/') ? String(path) : `/${path}`
+  if (!API_BASE_URL) {
+    return normalizedPath
+  }
+
+  const normalizedBase = trimTrailingSlash(API_BASE_URL)
+
+  // Supports both styles safely:
+  // - base '/api' + path '/api/auth/login' -> '/api/auth/login' (not '/api/api/...')
+  // - base 'https://api.example.com' + path '/api/auth/login' -> 'https://api.example.com/api/auth/login'
+  if (normalizedBase.endsWith('/api') && normalizedPath.startsWith('/api/')) {
+    return `${normalizedBase}${normalizedPath.slice(4)}`
+  }
+
+  return `${normalizedBase}${normalizedPath}`
+}
+
 async function fetchWithTimeout(url, options) {
   const controller = new AbortController()
   const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
@@ -110,7 +130,7 @@ export async function apiRequest(path, options = {}) {
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
+      response = await fetchWithTimeout(buildApiUrl(path), {
         credentials: 'include',
         cache: 'no-store',
         ...rest,
