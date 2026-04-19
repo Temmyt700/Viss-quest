@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:4000' : '')
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:4000' : '/api')
+const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 15000)
+const SAFE_RETRYABLE_METHODS = new Set(['GET', 'HEAD'])
 
 const TECHNICAL_ERROR_PATTERN =
   /failed query|drizzlequeryerror|select\s|insert\s|update\s|delete\s|stack|syntaxerror|internal server error|und_err|ecconn|enotfound|route not found|<html|<!doctype/i
@@ -71,6 +73,21 @@ async function parseResponse(response) {
   return payload
 }
 
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+async function fetchWithTimeout(url, options) {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    })
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
 export async function apiRequest(path, options = {}) {
   const { body, isFormData = false, headers, ...rest } = options
   if (!API_BASE_URL) {
@@ -85,21 +102,43 @@ export async function apiRequest(path, options = {}) {
     nextBody = JSON.stringify(body)
   }
 
+  const method = String(rest.method || 'GET').toUpperCase()
+  const shouldRetry = SAFE_RETRYABLE_METHODS.has(method)
+  const maxAttempts = shouldRetry ? 2 : 1
   let response
-  try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
-      credentials: 'include',
-      cache: 'no-store',
-      ...rest,
-      headers: requestHeaders,
-      body: nextBody,
-    })
-  } catch (error) {
-    if (error instanceof TypeError) {
+  let lastError
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
+        credentials: 'include',
+        cache: 'no-store',
+        ...rest,
+        method,
+        headers: requestHeaders,
+        body: nextBody,
+      })
+      lastError = null
+      break
+    } catch (error) {
+      lastError = error
+      if (attempt < maxAttempts) {
+        await delay(300 * attempt)
+        continue
+      }
+    }
+  }
+
+  if (!response && lastError) {
+    if (lastError instanceof DOMException && lastError.name === 'AbortError') {
+      throw new Error('The network is taking longer than expected. Please retry in a moment.')
+    }
+
+    if (lastError instanceof TypeError) {
       throw new Error('Please check your internet connection and try again.')
     }
 
-    throw error
+    throw lastError
   }
 
   return parseResponse(response)

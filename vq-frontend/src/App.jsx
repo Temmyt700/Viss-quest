@@ -34,7 +34,7 @@ import AdminUserDetail from './pages/AdminUserDetail'
 import AdminNotifications from './pages/AdminNotifications'
 import AdminTestimonials from './pages/AdminTestimonials'
 import LegalPage from './pages/LegalPage'
-import { API_BASE_URL, apiRequest } from './utils/api'
+import { apiRequest } from './utils/api'
 import { SUPPORT_CONTACT } from './utils/constants'
 import {
   flattenDraws,
@@ -552,23 +552,16 @@ function App() {
   }, [])
 
   const getSessionProfile = useCallback(async () => {
-    // A lightweight profile check avoids loading the full dashboard payload
-    // when the browser has no active session cookie.
-    const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
-      credentials: 'include',
-      cache: 'no-store',
-    })
-
-    if (response.status === 401 || response.status === 403) {
-      return null
+    try {
+      // A lightweight profile check avoids loading the full dashboard payload
+      // when the browser has no active session cookie.
+      return await apiRequest('/api/auth/profile', { method: 'GET' })
+    } catch (error) {
+      if (error && typeof error === 'object' && error.code === 'AUTH_REQUIRED') {
+        return null
+      }
+      throw error
     }
-
-    if (!response.ok) {
-      const payload = await response.text().catch(() => '')
-      throw new Error(payload || 'We could not confirm your session right now.')
-    }
-
-    return response.json()
   }, [])
 
   const applyDashboardSnapshot = useCallback((dashboardResponse) => {

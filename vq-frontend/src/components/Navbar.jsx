@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback } from 'react'
 import NotificationBell from './NotificationBell'
 import './Navbar.css'
 
@@ -23,43 +23,25 @@ function Navbar({
   isNotificationsLoading,
   onToggleNotifications,
   isAuthenticated,
-  isAuthLoading,
   isLoggingOut,
   onLogout,
 }) {
-  const lastPointerActivationRef = useRef(0)
   const showLogoutAction = isAuthenticated
 
-  const isSyntheticClickAfterPointer = useCallback((event) => {
-    if (event?.type !== 'click') return false
-    return Date.now() - lastPointerActivationRef.current < 450
-  }, [])
-
-  const markPointerActivation = useCallback((event) => {
-    if (event?.type !== 'pointerup') return
-    if (event.pointerType === 'mouse') return
-    lastPointerActivationRef.current = Date.now()
-  }, [])
-
-  const handleNavigate = useCallback((nextPath, event) => {
-    if (isSyntheticClickAfterPointer(event)) return
-    markPointerActivation(event)
+  const handleNavigate = useCallback((nextPath) => {
     onNavigate(nextPath)
-  }, [isSyntheticClickAfterPointer, markPointerActivation, onNavigate])
+  }, [onNavigate])
 
-  const handleLogout = useCallback((event) => {
-    if (isSyntheticClickAfterPointer(event)) return
-    markPointerActivation(event)
+  const handleLogout = useCallback(() => {
     onLogout()
-  }, [isSyntheticClickAfterPointer, markPointerActivation, onLogout])
+  }, [onLogout])
 
   return (
     <header className="navbar">
       <button
         className="brand-link"
         type="button"
-        onClick={(event) => handleNavigate('/', event)}
-        onPointerUp={(event) => handleNavigate('/', event)}
+        onClick={() => handleNavigate('/')}
       >
         <span className="brand-badge">VQ</span>
         <span>
@@ -73,8 +55,7 @@ function Navbar({
               key={link.path}
               type="button"
               className={`nav-link ${currentPath === link.path ? 'active' : ''}`}
-              onClick={(event) => handleNavigate(link.path, event)}
-              onPointerUp={(event) => handleNavigate(link.path, event)}
+              onClick={() => handleNavigate(link.path)}
             >
               {link.label}
             </button>
@@ -85,7 +66,6 @@ function Navbar({
                 type="button"
                 className={`nav-link nav-link-auth-mobile active ${isLoggingOut ? 'is-loading' : ''}`}
                 onClick={handleLogout}
-                onPointerUp={handleLogout}
                 disabled={isLoggingOut}
                 aria-busy={isLoggingOut}
               >
@@ -104,7 +84,6 @@ function Navbar({
                 type="button"
                 className={`nav-link nav-link-auth-desktop active ${isLoggingOut ? 'is-loading' : ''}`}
                 onClick={handleLogout}
-                onPointerUp={handleLogout}
                 disabled={isLoggingOut}
                 aria-busy={isLoggingOut}
               >
@@ -123,22 +102,18 @@ function Navbar({
               <button
                 type="button"
                 className={`nav-link nav-link-auth-mobile ${currentPath === '/login' || currentPath === '/signup' ? 'active' : ''}`}
-                onClick={(event) => handleNavigate('/login', event)}
-                onPointerUp={(event) => handleNavigate('/login', event)}
-                disabled={isAuthLoading}
+                onClick={() => handleNavigate('/login')}
               >
-                <span className="nav-link-label">{isAuthLoading ? 'Checking session...' : 'Login / Sign Up'}</span>
+                <span className="nav-link-label">Login / Sign Up</span>
               </button>
               {desktopAuthLinks.map((link) => (
                 <button
                   key={link.path}
                   type="button"
                   className={`nav-link nav-link-auth-desktop ${currentPath === link.path ? 'active' : ''}`}
-                  onClick={(event) => handleNavigate(link.path, event)}
-                  onPointerUp={(event) => handleNavigate(link.path, event)}
-                  disabled={isAuthLoading}
+                  onClick={() => handleNavigate(link.path)}
                 >
-                  {isAuthLoading && link.path === '/login' ? 'Checking session...' : link.label}
+                  {link.label}
                 </button>
               ))}
             </>
@@ -160,3 +135,4 @@ function Navbar({
 }
 
 export default Navbar
+
