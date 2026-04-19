@@ -592,7 +592,10 @@ function App() {
       winnerNotice: critical.winnerNotice || null,
       referralSummary: {
         isActive: Boolean(critical.referrals?.isActive ?? true),
-        rewardAmount: Number(critical.referrals?.rewardAmount || 500),
+        rewardAmount:
+          critical.referrals?.rewardAmount === undefined || critical.referrals?.rewardAmount === null
+            ? null
+            : Number(critical.referrals.rewardAmount),
         referralCode: critical.referrals?.code || critical.user?.referenceId || 'PENDING_REF',
         totalReferrals: Number(critical.referrals?.total || 0),
         successfulReferrals: Number(critical.referrals?.successful || 0),
@@ -1316,7 +1319,7 @@ function App() {
         userId: '',
         referralSummary: {
           isActive: true,
-          rewardAmount: 500,
+          rewardAmount: null,
           referralCode: 'VQ---',
           totalReferrals: 0,
           successfulReferrals: 0,
@@ -1337,7 +1340,7 @@ function App() {
       userId: dashboardData.user.id,
       referralSummary: dashboardData.referralSummary || {
         isActive: true,
-        rewardAmount: 500,
+        rewardAmount: null,
         referralCode: dashboardData.user.referenceId || 'PENDING_REF',
         totalReferrals: 0,
         successfulReferrals: 0,

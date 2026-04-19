@@ -37,8 +37,9 @@
 }
 
 .nav-shell {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
   gap: 0.45rem;
   position: relative;
   z-index: 1;
@@ -46,17 +47,10 @@
 
 .nav-links {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
-  overflow-x: auto;
-  scrollbar-width: none;
   gap: 0.38rem;
-  flex: 1;
   min-width: 0;
-}
-
-.nav-links::-webkit-scrollbar {
-  display: none;
 }
 
 .nav-link {
@@ -70,7 +64,8 @@
   padding: 0.52rem 0.58rem;
   min-height: 40px;
   min-width: 0;
-  flex: 0 0 auto;
+  flex: 0 0 calc((100% - 0.76rem) / 3);
+  max-width: calc((100% - 0.76rem) / 3);
   text-align: center;
   font-size: 0.8rem;
   line-height: 1.1;
@@ -125,6 +120,7 @@
   gap: 0.4rem;
   justify-content: flex-end;
   flex-shrink: 0;
+  align-self: end;
 }
 
 @media (min-width: 768px) {
@@ -150,7 +146,12 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
-    overflow: visible;
+    flex: initial;
+  }
+
+  .nav-link {
+    flex: 0 0 auto;
+    max-width: none;
   }
 
   .nav-link-auth-mobile {

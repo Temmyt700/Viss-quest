@@ -5,7 +5,7 @@ import './Dashboard.css'
 function Dashboard({ user, recentEntries, notificationsUnreadCount, onNavigate, canOpenTestimonials, testimonial, isLoading }) {
   const referralSummary = user.referralSummary || {
     isActive: true,
-    rewardAmount: 500,
+    rewardAmount: null,
     referralCode: user.referenceId,
     totalReferrals: 0,
     successfulReferrals: 0,
@@ -13,6 +13,10 @@ function Dashboard({ user, recentEntries, notificationsUnreadCount, onNavigate, 
     recentActivity: [],
   }
   const referralLink = `${window.location.origin}/signup?ref=${referralSummary.referralCode}`
+  const hasReferralAmount = typeof referralSummary.rewardAmount === 'number' && Number.isFinite(referralSummary.rewardAmount)
+  const referralAmountLabel = hasReferralAmount
+    ? `Earn ${formatCurrency(referralSummary.rewardAmount)} per qualified referral`
+    : '\u00A0'
   const formatActivityDate = (value) => {
     if (!value) return 'Pending'
     const date = new Date(value)
@@ -72,7 +76,7 @@ function Dashboard({ user, recentEntries, notificationsUnreadCount, onNavigate, 
       <section className="card stack">
         <div className="row spread">
           <h2>Referral Center</h2>
-          <span className="status-pill">Earn {formatCurrency(referralSummary.rewardAmount || 0)} per qualified referral</span>
+          <span className="status-pill">{referralAmountLabel}</span>
         </div>
         <div className="grid three">
           <StatsCard label="Total Referrals" value={referralSummary.totalReferrals} />
